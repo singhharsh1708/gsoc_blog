@@ -1,43 +1,49 @@
-# Astro Starter Kit: Minimal
+# Harsh Singh — GSoC 2026 @ SciML
 
-```sh
-npm create astro@latest -- --template minimal
+Personal portfolio and technical blog for **Google Summer of Code 2026** under **SciML (NumFOCUS)**.
+
+🔗 **Live:** [singhharsh1708.github.io/Harsh_gsoc_blog](https://singhharsh1708.github.io/Harsh_gsoc_blog/)
+
+## Tech Stack
+
+Pure static site — no build step, no frameworks.
+
+- **HTML** — semantic markup
+- **CSS** — vanilla, dark-first design system
+- **JavaScript** — theme toggle, animations, filters
+- **KaTeX** — LaTeX math rendering (CDN)
+
+## Project Structure
+
+```
+├── index.html              # Main page (all sections)
+├── css/style.css           # Design system
+├── js/main.js              # Theme, nav, animations, filters
+└── blog/
+    ├── gsoc-selection.html
+    ├── imex-runge-kutta.html
+    ├── refactoring-tableaus.html
+    ├── perform-step.html
+    ├── zero-allocation-julia.html
+    ├── multirate-solvers.html
+    └── lessons-sciml.html
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## Features
 
-## 🚀 Project Structure
+- Dark/light theme toggle
+- 7 complete technical blog posts with academic references
+- KaTeX math rendering
+- GitHub contribution graph
+- Category-filtered blog section
+- Tabbed PR contribution cards
+- Scroll animations
+- Fully responsive
 
-Inside of your Astro project, you'll see the following folders and files:
+## Deploy
 
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
+Static site — just push to GitHub and enable Pages from `main` branch. No build step needed.
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## License
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
-
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+MIT
