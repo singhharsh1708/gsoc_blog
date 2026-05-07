@@ -128,7 +128,7 @@ body {
 
 .hero-badge {
   display: inline-flex; align-items: center; gap: 8px;
-  background: var(--accent-glow); border: 1px solid rgba(108,99,255,0.3);
+  background: var(--accent-glow); border: 1px solid rgba(34, 211, 238, 0.3);
   border-radius: 50px; padding: 6px 16px; font-size: 0.85rem;
   color: var(--accent-hover); font-weight: 500; margin-bottom: 24px;
   animation: fadeInUp 0.6s ease;
@@ -251,7 +251,7 @@ section { padding: 100px 0; }
 }
 
 .tech-tag {
-  background: var(--accent-glow); border: 1px solid rgba(108,99,255,0.2);
+  background: var(--accent-glow); border: 1px solid rgba(34, 211, 238, 0.2);
   border-radius: 50px; padding: 6px 14px; font-size: 0.8rem;
   color: var(--accent-hover); font-weight: 500; font-family: var(--font-mono);
 }
@@ -441,10 +441,10 @@ section { padding: 100px 0; }
   width: 14px; height: 14px; border-radius: 3px;
   background: var(--bg-elevated); transition: background 0.2s;
 }
-.graph-cell.l1 { background: rgba(108,99,255,0.2); }
-.graph-cell.l2 { background: rgba(108,99,255,0.4); }
-.graph-cell.l3 { background: rgba(108,99,255,0.6); }
-.graph-cell.l4 { background: rgba(108,99,255,0.85); }
+.graph-cell.l1 { background: rgba(34, 211, 238, 0.2); }
+.graph-cell.l2 { background: rgba(34, 211, 238, 0.4); }
+.graph-cell.l3 { background: rgba(34, 211, 238, 0.6); }
+.graph-cell.l4 { background: rgba(34, 211, 238, 0.85); }
 
 /* ===== BLOG POST PAGE ===== */
 .blog-post { max-width: 780px; margin: 0 auto; padding: 120px 24px 80px; }
