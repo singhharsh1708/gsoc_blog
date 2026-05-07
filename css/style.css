@@ -307,7 +307,7 @@ section { padding: 100px 0; }
 .pr-card {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 20px; transition: all var(--transition); cursor: pointer; text-decoration: none;
-  display: block;
+  display: block; color: var(--text-primary);
 }
 .pr-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow); }
 
@@ -321,7 +321,7 @@ section { padding: 100px 0; }
 .pr-status.merged { background: rgba(52,211,153,0.15); color: var(--accent-green); border: 1px solid rgba(52,211,153,0.3); }
 .pr-status.open { background: rgba(251,191,36,0.15); color: var(--accent-amber); border: 1px solid rgba(251,191,36,0.3); }
 
-.pr-card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; line-height: 1.4; }
+.pr-card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; line-height: 1.4; color: var(--text-primary); }
 .pr-card p { font-size: 0.85rem; color: var(--text-muted); }
 
 /* ===== BLOG ===== */
