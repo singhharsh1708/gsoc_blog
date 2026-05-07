@@ -24,16 +24,15 @@
   <div class="blog-post-content">
     <p>Over the past several months, I've merged 16+ pull requests across three SciML repositories: <code>OrdinaryDiffEq.jl</code>, <code>SciMLBenchmarks.jl</code>, and <code>ODEInterfaceDiffEq.jl</code>. This post distills the lessons I've learned about contributing to a large-scale scientific open-source ecosystem — lessons about code, collaboration, and the culture of rigorous numerical software.</p>
 
-    <h2>1. Read More Code Than You Write</h2>
-    <p>My first months of SciML involvement were spent <em>reading</em>, not writing. Before my first PR, I had read through:</p>
+    <h2>1. The Best Way to Learn is by Doing</h2>
+    <p>When I started contributing in January 2026, I didn't spend months just reading code. I jumped straight into writing it, starting with validation and benchmark code before moving into the core solvers. By actively working on the codebase, I rapidly picked up:</p>
     <ul>
-      <li>The entire <code>perform_step!</code> implementation for at least 10 solvers</li>
+      <li>How the entire <code>perform_step!</code> pipeline is constructed</li>
       <li>The cache allocation pattern and how <code>alg_cache</code> dispatch works</li>
       <li>The integrator loop structure (<code>loopheader!</code>, <code>perform_step!</code>, <code>loopfooter!</code>)</li>
       <li>The test suite structure and convergence testing methodology</li>
-      <li>Key papers referenced in the code comments</li>
     </ul>
-    <p>This investment paid off enormously. By the time I wrote my first <code>perform_step!</code>, I understood not just <em>what</em> to write but <em>why</em> each pattern existed. Understanding the rationale behind design decisions — like why caches are parametric types, or why FSAL is handled as a separate code path — prevented me from making naive design choices that would have been rejected in review.</p>
+    <p>This hands-on approach forced me to learn fast. Breaking the tests and fixing them taught me more about the rationale behind design decisions — like why caches are parametric types, or why FSAL is handled as a separate code path — than reading ever could have.</p>
 
     <h2>2. Numerical Testing Is Different From Software Testing</h2>
     <p>In most software, a test checks "does this function return the expected output?" In numerical computing, the answer is almost never exact. Instead, we test:</p>
@@ -85,15 +84,15 @@ end</code></pre>
     </ol>
     <p>Each PR is small, focused, and independently verifiable. Reviewers can give detailed feedback on each step rather than rubber-stamping a massive diff.</p>
 
-    <h2>5. Benchmark Contributions Are Undervalued</h2>
-    <p>My 8 DAE benchmarks in <code>SciMLBenchmarks.jl</code> might seem less exciting than new solver implementations, but they're arguably more impactful. Benchmarks:</p>
+    <h2>5. Starting with Benchmarks and Validation</h2>
+    <p>Between January and March, my initial focus was entirely on <code>SciMLBenchmarks.jl</code> and DAE benchmark infrastructure. While it might seem less exciting than new solver implementations, it was the perfect entry point. Benchmarks:</p>
     <ul>
       <li><strong>Define the standard:</strong> A benchmark establishes what "correct" looks like for a given problem class</li>
-      <li><strong>Enable comparison:</strong> Without benchmarks, claims of "faster" or "more accurate" are meaningless</li>
-      <li><strong>Catch regressions:</strong> Automated benchmark runs detect when a change breaks performance</li>
-      <li><strong>Guide development:</strong> Benchmarks reveal which problems need better solvers</li>
+      <li><strong>Force you to understand performance:</strong> You learn to read work-precision diagrams and spot performance regressions</li>
+      <li><strong>Catch edge cases:</strong> Automated benchmark runs detect when a change breaks under stress</li>
+      <li><strong>Expose the internals:</strong> To benchmark a solver, you have to understand how it's called and what it's trying to optimize</li>
     </ul>
-    <p>The DAE benchmarks I contributed — including the Car Axis Index-3 system, Andrews' Squeezing Mechanism, and the Slider-Crank Mechanism — are based on classical test problems from the mechanical engineering literature (documented in Hairer & Wanner, 1996). They provide reference solutions and work-precision diagrams that are essential for validating new DAE solvers.</p>
+    <p>The 8 DAE benchmarks I contributed — including the Car Axis Index-3 system, Andrews' Squeezing Mechanism, and the Slider-Crank Mechanism — taught me how numerical software is validated in the real world. This validation work built the foundation I needed to start writing the solvers themselves.</p>
 
     <h2>6. Communication Patterns That Work</h2>
     <p>SciML maintainers are busy researchers. Effective communication is concise and context-rich:</p>
@@ -119,11 +118,11 @@ end</code></pre>
 
     <h2>Key Takeaways</h2>
     <ol>
-      <li>Invest time in understanding existing code before writing new code</li>
+      <li>Learn by implementing — start with benchmarks and work your way into the core</li>
       <li>Numerical correctness requires specialized testing beyond unit tests</li>
-      <li>Performance is a design constraint, not an afterthought</li>
+      <li>Performance (allocations, type stability) is a design constraint, not an afterthought</li>
       <li>Small, focused PRs get reviewed faster and merged more reliably</li>
-      <li>Benchmarks and tests are as valuable as new features</li>
+      <li>Benchmarks are the perfect training ground for understanding solver internals</li>
       <li>Communication matters as much as code quality</li>
       <li>Scientific software has unique correctness requirements</li>
       <li>Persistence through review cycles builds both code quality and developer skill</li>

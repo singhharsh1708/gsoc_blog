@@ -25,9 +25,9 @@
   </div>
 
   <div class="blog-post-content">
-    <p>Many real-world dynamical systems combine <strong>stiff</strong> and <strong>non-stiff</strong> components. Climate models couple fast acoustic waves with slow advection. Chemical reaction networks pair rapid equilibration with gradual transport. Treating everything implicitly is expensive; treating everything explicitly is unstable. <strong>IMEX (Implicit-Explicit) Runge–Kutta methods</strong> solve this by splitting the problem and applying the right treatment to each part.</p>
+    <p>Many real-world systems have both <strong>stiff</strong> and <strong>non-stiff</strong> parts. Think of climate models coupling fast acoustic waves with slow advection, or chemical reactions mixing rapid changes with slow transport. Treating everything implicitly is too slow, but treating everything explicitly blows up. <strong>IMEX (Implicit-Explicit) Runge–Kutta methods</strong> fix this by splitting the math and applying the right tool to each piece.</p>
 
-    <p>This post provides a thorough introduction to IMEX-RK methods — the mathematics, the implementation, and how they fit into the architecture of <code>OrdinaryDiffEq.jl</code>. This material directly motivates the generic tableau infrastructure I'm building for GSoC 2026.</p>
+    <p>This post breaks down IMEX-RK methods — how the math works, how we code them, and why they matter for <code>OrdinaryDiffEq.jl</code>. This directly drives the generic tableau architecture I'm building for GSoC 2026.</p>
 
     <h2>1. The Splitting Problem</h2>
     <p>Consider an ODE of the form:</p>
@@ -38,7 +38,7 @@
       <li>Apply an <strong>implicit</strong> RK method to \(g\) — unconditionally stable for stiff terms</li>
     </ul>
 
-    <p>This approach was formalized in the seminal work of Ascher, Ruuth, and Spiteri (1997), who developed IMEX-RK schemes specifically for convection-diffusion type PDEs. Their key insight was that partitioned Runge–Kutta schemes could overcome the restrictive time-step limitations of earlier IMEX linear multistep methods while remaining self-starting.</p>
+    <p>This approach was really pushed forward by Ascher, Ruuth, and Spiteri (1997) for convection-diffusion PDEs. They figured out that partitioned Runge–Kutta schemes could beat the nasty time-step limits of older IMEX methods while still being easy to start up.</p>
 
     <h2>2. Double Butcher Tableau</h2>
     <p>An \(s\)-stage IMEX-RK method is defined by a <strong>pair</strong> of Butcher tableaus — one for the explicit part, one for the implicit:</p>
@@ -65,7 +65,7 @@
       <li>For large systems (e.g., semi-discretized PDEs), this reduces the cost from \(O(s \cdot n^3)\) to \(O(n^3 + s \cdot n^2)\)</li>
     </ul>
 
-    <p>Kennedy and Carpenter (2003) developed several high-order ARK (Additive Runge–Kutta) methods with this SDIRK property, including the widely-used ARK4(3)6L[2]SA scheme — a fourth-order, six-stage method with an embedded third-order error estimator. These methods are implemented in production codes including PETSc's <code>TSARKIMEX</code> time integrator.</p>
+    <p>Kennedy and Carpenter (2003) built several high-order ARK (Additive Runge–Kutta) methods with this SDIRK property, like the popular ARK4(3)6L[2]SA scheme — a fourth-order, six-stage method. You'll find these in heavy-duty production codes like PETSc's <code>TSARKIMEX</code>.</p>
 
     <h2>4. Order Conditions</h2>
     <p>The order conditions for IMEX-RK methods are more complex than for standalone RK methods. For an IMEX pair to achieve order \(p\), both the explicit and implicit tableaus must individually satisfy order-\(p\) conditions, <em>and</em> a set of <strong>coupling conditions</strong> must hold between the two tableaus.</p>

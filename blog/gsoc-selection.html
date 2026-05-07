@@ -24,19 +24,23 @@
   </div>
 
   <div class="blog-post-content">
-    <p>I'm thrilled to share that I've been selected as a <strong>Google Summer of Code 2026</strong> contributor under <strong>SciML (NumFOCUS)</strong>. My project — <em>"Native Julia ODE, SDE, DAE, DDE, and PDE Solvers"</em> — focuses on refactoring the core stepping infrastructure of <code>OrdinaryDiffEq.jl</code>, one of the most widely-used numerical ODE solver packages in the Julia ecosystem.</p>
+    <p>I'm thrilled to share that I've been selected as a <strong>Google Summer of Code 2026</strong> contributor under <strong>SciML (NumFOCUS)</strong>. My project — <em>"Native Julia ODE, SDE, DAE, DDE, and PDE Solvers"</em> — focuses on refactoring the core stepping infrastructure of <code>OrdinaryDiffEq.jl</code>, focusing on zero-allocation performance and generic dispatch.</p>
 
-    <p>This post is a detailed account of how I got here — from my first encounter with Julia to having 16+ merged PRs across SciML repositories and ultimately landing a GSoC spot. If you're considering applying to GSoC with a scientific computing org, I hope this helps.</p>
+    <p>This post is a detailed account of how I got here — from starting my first contributions in January 2026 to rapidly learning numerical software development, and ultimately prototyping a major solver refactor that became my GSoC proposal.</p>
 
     <h2>Why SciML and Julia?</h2>
     <p>My interest in numerical computing started during my second year of undergraduate studies. I was fascinated by how differential equations underpin everything from weather prediction to molecular dynamics. When I discovered Julia — a language designed from the ground up for scientific computing — and the SciML ecosystem built on top of it, I knew I'd found my niche.</p>
 
     <p>The SciML ecosystem, led by <strong>Chris Rackauckas</strong> and others, is remarkable in scope. As described in the foundational paper <em>"DifferentialEquations.jl – A Performant and Feature-Rich Ecosystem for Solving Differential Equations in Julia"</em> (Rackauckas & Nie, 2017, <em>Journal of Open Research Software</em>), the ecosystem provides a unified interface for ODEs, SDEs, DDEs, DAEs, and more — all while matching or exceeding the performance of established Fortran/C libraries like Sundials and LSODA.</p>
 
-    <p>What drew me in wasn't just using the tools, but understanding <em>how</em> they work. I started reading the <code>OrdinaryDiffEq.jl</code> source code to understand how production-grade numerical solvers are actually implemented.</p>
+    <p>What drew me in wasn't just using the tools, but understanding <em>how</em> they work under the hood. I wanted to learn by doing, diving straight into the code and learning numerical solver design through active implementation.</p>
 
     <h2>The Contribution Journey</h2>
-    <h3>Phase 1: The First PR — Ralston4 (#3215)</h3>
+    <h3>Starting with Benchmarks and Validation (Jan-Mar)</h3>
+    <p>I started my SciML journey around January 2026, focusing heavily on <code>SciMLBenchmarks.jl</code>. Before writing solvers, I needed to understand how to validate them. Over a two-month period until mid-March, I contributed <strong>8 DAE benchmarks</strong> covering Index-1 through Index-3 problems from mechanical and electrical engineering.</p>
+    <p>This phase was critical. Working with work-precision diagrams and validation suites taught me what performance in numerical computing actually means. It forced me to understand solver internals by seeing how different algorithms performed under stress.</p>
+
+    <h3>Phase 1: Moving to Solvers — Ralston4 (#3215)</h3>
     <p>My first contribution was implementing the <strong>Ralston4 solver pipeline</strong>. Ralston's fourth-order method is a classical explicit Runge–Kutta scheme that minimizes the leading truncation error coefficient. It's defined by a specific Butcher tableau:</p>
 
     <pre><code># Ralston4 Butcher Tableau
@@ -60,18 +64,18 @@
       <li><strong>Testing and CI:</strong> Running the full SciML test suite and ensuring convergence order</li>
     </ul>
 
-    <h3>Phase 2: Scaling Up — LSRK Methods (#3241)</h3>
-    <p>After Ralston4, I took on a much larger task: implementing <strong>16 energy-stable, discontinuous-Galerkin-optimized low-storage Runge–Kutta (LSRK) methods</strong>. These are the 3S* family of methods from Edelmann and Staniforth's research, designed for hyperbolic conservation laws in computational fluid dynamics.</p>
+    <h3>Phase 2: Scaling Up and Performance — LSRK Methods (#3241)</h3>
+    <p>After Ralston4, I took on a much larger task: implementing <strong>16 energy-stable, discontinuous-Galerkin-optimized low-storage Runge–Kutta (LSRK) methods</strong>. This was my crash course in high-performance computing in Julia.</p>
 
-    <p>Low-storage methods are critical for large-scale PDE simulations where memory bandwidth is the bottleneck. Instead of storing all <em>s</em> stage derivatives simultaneously, 3S* methods require only 3 storage registers regardless of the number of stages — a massive memory reduction for high-order methods.</p>
+    <p>Low-storage methods require intense focus on memory allocation. I had to ensure type stability, optimize cache structures, and guarantee zero-allocation kernels. Learning to squeeze maximum performance out of Julia was a steep but incredibly rewarding learning curve.</p>
 
     <h3>Phase 3: Advanced Solvers — pRRK and IMEX (#3246, #3196)</h3>
     <p>I then implemented <strong>positivity-preserving relaxation Runge–Kutta (pRRK)</strong> methods — schemes that guarantee the numerical solution preserves physical constraints like positivity of density or concentration. This required understanding relaxation parameters and their role in modifying the step to maintain invariants.</p>
 
     <p>The <strong>IMEXTableau framework</strong> (#3196) was my most architecturally significant contribution. Instead of hand-coding each IMEX solver separately, I designed a generic tableau type that could be parametrized by coefficients, enabling a single <code>perform_step!</code> implementation to serve multiple IMEX schemes.</p>
 
-    <h3>Phase 4: Benchmarks and Beyond</h3>
-    <p>In parallel, I contributed <strong>8 DAE benchmarks</strong> to <code>SciMLBenchmarks.jl</code>, covering Index-1 through Index-3 problems from mechanical engineering (slider-crank mechanisms, car axle systems, Andrews' squeezing mechanism) and electrical engineering (charge pump circuits). These benchmarks provide reference solutions and work-precision diagrams for comparing DAE solvers.</p>
+    <h3>Phase 4: The Generic Infrastructure Prototype</h3>
+    <p>Working through these implementations within a rapid ~10 day period leading up to GSoC, a pattern emerged: we were writing the same code over and over.</p>
 
     <h2>The Proposal: Refactoring 3,300 Lines of Duplicated Code</h2>
     <p>The core insight behind my proposal came from a pattern I noticed while implementing solvers: <code>OrdinaryDiffEq.jl</code> contained approximately <strong>3,300 lines of duplicated <code>perform_step!</code> implementations</strong> across Runge–Kutta and IMEX solver families. Each solver essentially implemented the same mathematical structure with different tableau coefficients.</p>
@@ -89,7 +93,7 @@
     <h2>What Made the Proposal Stand Out</h2>
     <p>Looking back, I think several factors contributed to a successful proposal:</p>
     <ul>
-      <li><strong>Demonstrated expertise:</strong> 16+ merged PRs showed I could write production-quality solver code</li>
+      <li><strong>Rapid execution:</strong> Showing I could learn fast, moving from benchmarks to core solver implementations quickly</li>
       <li><strong>Specificity:</strong> The proposal cited exact line counts, specific files, and concrete performance targets — not vague promises</li>
       <li><strong>Progressive complexity:</strong> My contribution history showed growth from simple solvers to complex infrastructure</li>
       <li><strong>Alignment with maintainer priorities:</strong> The refactoring directly addressed technical debt that Chris and other maintainers had identified</li>
@@ -98,8 +102,8 @@
 
     <h2>Advice for Future Applicants</h2>
     <ol>
-      <li><strong>Start contributing months before GSoC season.</strong> My first PR was in late 2025. By the time applications opened, I had a track record.</li>
-      <li><strong>Read the source code deeply.</strong> Don't just use the library — understand its architecture. I spent weeks reading <code>perform_step!</code> implementations before writing my own.</li>
+      <li><strong>Start early, but focus on rapid learning.</strong> I started in January and spent the first few months heavily on benchmarks before accelerating into core solvers.</li>
+      <li><strong>Learn by implementing.</strong> Don't just read the code—break it, write a simple solver, and see how the tests respond. The best way to understand an architecture is to build within it.</li>
       <li><strong>Communicate with mentors.</strong> I was active in the SciML Slack/Zulip channels, asked questions, and shared ideas. Mentors remember contributors who are engaged.</li>
       <li><strong>Show progressive complexity.</strong> Start simple and escalate. Reviewers notice growth from "implemented a basic RK method" to "designed a generic tableau infrastructure."</li>
       <li><strong>Write a specific proposal.</strong> Generic proposals get rejected. Know the code, cite line numbers, and show you've done the work.</li>
