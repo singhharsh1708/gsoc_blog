@@ -1,20 +1,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg-primary: #0f1115;
-  --bg-secondary: #14171c;
-  --bg-card: #14171c;
-  --bg-card-hover: #1a1d24;
-  --bg-elevated: #1e222b;
-  --border: #282c35;
-  --border-hover: #383e4a;
-  --text-primary: #e2e8f0;
+  --bg-primary: #0f172a;
+  --bg-secondary: #0b1020;
+  --bg-card: #111827;
+  --bg-card-hover: #1e293b;
+  --bg-elevated: #1e293b;
+  --border: #334155;
+  --border-hover: #475569;
+  --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
-  --accent: #38bdf8;
-  --accent-hover: #7dd3fc;
-  --accent-glow: rgba(56, 189, 248, 0.1);
-  --accent-2: #38bdf8;
+  --accent: #22d3ee;
+  --accent-hover: #67e8f9;
+  --accent-glow: rgba(34, 211, 238, 0.1);
+  --accent-2: #a78bfa;
+  --accent-green: #34d399;
+  --accent-amber: #fbbf24;
   --radius: 8px;
   --radius-sm: 6px;
   --radius-lg: 12px;
@@ -55,8 +57,20 @@ body {
   transition: background var(--transition), color var(--transition);
 }
 
-/* Grid Background - Removed for minimal look */
-.grid-bg { display: none; }
+/* Grid Background */
+.grid-bg {
+  position: fixed; inset: 0; z-index: -1;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 60px 60px;
+  opacity: 0.15;
+}
+
+.grid-bg::after {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, var(--accent-glow), transparent 70%);
+}
 
 /* Container */
 .container { max-width: var(--max-width); margin: 0 auto; padding: 0 24px; }
@@ -64,7 +78,7 @@ body {
 /* ===== NAVBAR ===== */
 .navbar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  background: rgba(10,10,15,0.8);
+  background: rgba(15,23,42,0.85);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
   transition: background var(--transition);
@@ -304,8 +318,8 @@ section { padding: 100px 0; }
 .pr-status {
   font-size: 0.75rem; font-weight: 600; padding: 3px 10px; border-radius: 50px;
 }
-.pr-status.merged { background: rgba(139,92,246,0.15); color: #a78bfa; }
-.pr-status.open { background: var(--accent-glow); color: var(--accent); }
+.pr-status.merged { background: rgba(52,211,153,0.15); color: var(--accent-green); border: 1px solid rgba(52,211,153,0.3); }
+.pr-status.open { background: rgba(251,191,36,0.15); color: var(--accent-amber); border: 1px solid rgba(251,191,36,0.3); }
 
 .pr-card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; line-height: 1.4; }
 .pr-card p { font-size: 0.85rem; color: var(--text-muted); }
@@ -324,6 +338,10 @@ section { padding: 100px 0; }
 .blog-filter.active, .blog-filter:hover {
   border-color: var(--accent); color: var(--accent); background: var(--accent-glow);
 }
+.blog-filter[data-cat="numerical"].active { border-color: var(--accent-2); color: var(--accent-2); background: rgba(167, 139, 250, 0.15); }
+.blog-filter[data-cat="julia"].active { border-color: var(--accent); color: var(--accent); background: rgba(34, 211, 238, 0.15); }
+.blog-filter[data-cat="gsoc"].active { border-color: var(--text-primary); color: var(--text-primary); background: rgba(248, 250, 252, 0.1); }
+.blog-filter[data-cat="opensource"].active { border-color: var(--accent-green); color: var(--accent-green); background: rgba(52, 211, 153, 0.15); }
 
 .blog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 24px; }
 
@@ -342,8 +360,12 @@ section { padding: 100px 0; }
 
 .blog-category {
   background: var(--accent-glow); color: var(--accent); padding: 3px 10px;
-  border-radius: 50px; font-weight: 600; font-size: 0.75rem;
+  border-radius: 50px; font-weight: 600; font-size: 0.75rem; border: 1px solid transparent;
 }
+.blog-card[data-cat="numerical"] .blog-category { background: rgba(167, 139, 250, 0.15); color: var(--accent-2); border-color: rgba(167, 139, 250, 0.3); }
+.blog-card[data-cat="julia"] .blog-category { background: rgba(34, 211, 238, 0.15); color: var(--accent); border-color: rgba(34, 211, 238, 0.3); }
+.blog-card[data-cat="gsoc"] .blog-category { background: rgba(248, 250, 252, 0.1); color: var(--text-primary); border-color: rgba(248, 250, 252, 0.2); }
+.blog-card[data-cat="opensource"] .blog-category { background: rgba(52, 211, 153, 0.15); color: var(--accent-green); border-color: rgba(52, 211, 153, 0.3); }
 
 .blog-card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 10px; line-height: 1.4; color: var(--text-primary); }
 .blog-card p { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; }
@@ -445,7 +467,8 @@ section { padding: 100px 0; }
 }
 
 .blog-post-content pre {
-  background: var(--bg-secondary); border: 1px solid var(--border);
+  background: #1a1b26; /* Tokyo Night */
+  border: 1px solid #292e42;
   border-radius: var(--radius); padding: 20px; margin: 24px 0;
   overflow-x: auto; font-family: var(--font-mono); font-size: 0.9rem;
   line-height: 1.6; position: relative;
@@ -454,7 +477,7 @@ section { padding: 100px 0; }
   font-family: var(--font-mono); font-size: 0.88em;
   background: var(--bg-elevated); padding: 2px 6px; border-radius: 4px;
 }
-.blog-post-content pre code { background: none; padding: 0; }
+.blog-post-content pre code { background: none; padding: 0; color: #a9b1d6; }
 
 .copy-btn {
   position: absolute; top: 10px; right: 10px;

@@ -162,3 +162,28 @@ if (heroTyping) {
   const text = heroTyping.dataset.text;
   typeWriter(heroTyping, text, 40);
 }
+
+// ===== Syntax Highlighting (Tokyo Night) =====
+if (document.querySelector('pre code')) {
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css';
+  document.head.appendChild(link);
+  
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
+  
+  script.onload = () => {
+    // Add Julia language explicitly as it's not always in the common bundle
+    const juliaScript = document.createElement('script');
+    juliaScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/julia.min.js';
+    juliaScript.onload = () => {
+      document.querySelectorAll('pre code').forEach((block) => {
+        if (!block.className) block.classList.add('language-julia');
+        hljs.highlightElement(block);
+      });
+    };
+    document.head.appendChild(juliaScript);
+  };
+  document.head.appendChild(script);
+}
