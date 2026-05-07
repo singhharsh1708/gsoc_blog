@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Getting Selected for GSoC 2026 with SciML — Harsh Singh</title>
+  <meta name="description" content="My journey from first Julia PR to becoming a GSoC 2026 contributor at SciML — the proposal, contributions, and lessons learned.">
+  <meta property="og:title" content="Getting Selected for GSoC 2026 with SciML">
+  <meta property="og:description" content="A detailed account of my GSoC selection journey with SciML (NumFOCUS).">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav class="navbar"><div class="container"><a href="../index.html" class="nav-logo">HS.</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle">☀️</button></li></ul><button class="mobile-toggle" id="mobile-toggle">☰</button></div></nav>
+<div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
+
+<article class="blog-post">
+  <div class="blog-post-header">
+    <a href="../index.html#blog" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">← Back to Blog</a>
+    <h1 style="margin-top:20px;">Getting Selected for GSoC 2026 with SciML</h1>
+    <div class="blog-post-meta">
+      <span>📅 May 7, 2026</span><span>🕐 10 min read</span><span class="blog-category">GSoC</span>
+    </div>
+  </div>
+
+  <div class="blog-post-content">
+    <p>I'm thrilled to share that I've been selected as a <strong>Google Summer of Code 2026</strong> contributor under <strong>SciML (NumFOCUS)</strong>. My project — <em>"Native Julia ODE, SDE, DAE, DDE, and PDE Solvers"</em> — focuses on refactoring the core stepping infrastructure of <code>OrdinaryDiffEq.jl</code>, one of the most widely-used numerical ODE solver packages in the Julia ecosystem.</p>
+
+    <p>This post is a detailed account of how I got here — from my first encounter with Julia to having 16+ merged PRs across SciML repositories and ultimately landing a GSoC spot. If you're considering applying to GSoC with a scientific computing org, I hope this helps.</p>
+
+    <h2>Why SciML and Julia?</h2>
+    <p>My interest in numerical computing started during my second year of undergraduate studies. I was fascinated by how differential equations underpin everything from weather prediction to molecular dynamics. When I discovered Julia — a language designed from the ground up for scientific computing — and the SciML ecosystem built on top of it, I knew I'd found my niche.</p>
+
+    <p>The SciML ecosystem, led by <strong>Chris Rackauckas</strong> and others, is remarkable in scope. As described in the foundational paper <em>"DifferentialEquations.jl – A Performant and Feature-Rich Ecosystem for Solving Differential Equations in Julia"</em> (Rackauckas & Nie, 2017, <em>Journal of Open Research Software</em>), the ecosystem provides a unified interface for ODEs, SDEs, DDEs, DAEs, and more — all while matching or exceeding the performance of established Fortran/C libraries like Sundials and LSODA.</p>
+
+    <p>What drew me in wasn't just using the tools, but understanding <em>how</em> they work. I started reading the <code>OrdinaryDiffEq.jl</code> source code to understand how production-grade numerical solvers are actually implemented.</p>
+
+    <h2>The Contribution Journey</h2>
+    <h3>Phase 1: The First PR — Ralston4 (#3215)</h3>
+    <p>My first contribution was implementing the <strong>Ralston4 solver pipeline</strong>. Ralston's fourth-order method is a classical explicit Runge–Kutta scheme that minimizes the leading truncation error coefficient. It's defined by a specific Butcher tableau:</p>
+
+    <pre><code># Ralston4 Butcher Tableau
+# c | A
+# --|----
+#   | b^T
+#
+# 0   |  0
+# 0.4 |  0.4
+# 0.4557 | 0.29698 0.15875
+# 1   | 0.21827 -3.05097 3.83274 0
+# ----|----------------------------
+#     | 0.17476 -0.55149 1.20553 0.17118</code></pre>
+
+    <p>While simple mathematically, this PR taught me the entire SciML solver development workflow:</p>
+    <ul>
+      <li><strong>Algorithm struct definition:</strong> Defining the type that users dispatch on (e.g., <code>Ralston4()</code>)</li>
+      <li><strong>Cache construction:</strong> Setting up pre-allocated work arrays for zero-allocation stepping</li>
+      <li><strong><code>perform_step!</code> implementation:</strong> The core numerical kernel — both in-place (IIP) and out-of-place (OOP) variants</li>
+      <li><strong>Interpolation:</strong> Dense output for continuous solution representation between time steps</li>
+      <li><strong>Testing and CI:</strong> Running the full SciML test suite and ensuring convergence order</li>
+    </ul>
+
+    <h3>Phase 2: Scaling Up — LSRK Methods (#3241)</h3>
+    <p>After Ralston4, I took on a much larger task: implementing <strong>16 energy-stable, discontinuous-Galerkin-optimized low-storage Runge–Kutta (LSRK) methods</strong>. These are the 3S* family of methods from Edelmann and Staniforth's research, designed for hyperbolic conservation laws in computational fluid dynamics.</p>
+
+    <p>Low-storage methods are critical for large-scale PDE simulations where memory bandwidth is the bottleneck. Instead of storing all <em>s</em> stage derivatives simultaneously, 3S* methods require only 3 storage registers regardless of the number of stages — a massive memory reduction for high-order methods.</p>
+
+    <h3>Phase 3: Advanced Solvers — pRRK and IMEX (#3246, #3196)</h3>
+    <p>I then implemented <strong>positivity-preserving relaxation Runge–Kutta (pRRK)</strong> methods — schemes that guarantee the numerical solution preserves physical constraints like positivity of density or concentration. This required understanding relaxation parameters and their role in modifying the step to maintain invariants.</p>
+
+    <p>The <strong>IMEXTableau framework</strong> (#3196) was my most architecturally significant contribution. Instead of hand-coding each IMEX solver separately, I designed a generic tableau type that could be parametrized by coefficients, enabling a single <code>perform_step!</code> implementation to serve multiple IMEX schemes.</p>
+
+    <h3>Phase 4: Benchmarks and Beyond</h3>
+    <p>In parallel, I contributed <strong>8 DAE benchmarks</strong> to <code>SciMLBenchmarks.jl</code>, covering Index-1 through Index-3 problems from mechanical engineering (slider-crank mechanisms, car axle systems, Andrews' squeezing mechanism) and electrical engineering (charge pump circuits). These benchmarks provide reference solutions and work-precision diagrams for comparing DAE solvers.</p>
+
+    <h2>The Proposal: Refactoring 3,300 Lines of Duplicated Code</h2>
+    <p>The core insight behind my proposal came from a pattern I noticed while implementing solvers: <code>OrdinaryDiffEq.jl</code> contained approximately <strong>3,300 lines of duplicated <code>perform_step!</code> implementations</strong> across Runge–Kutta and IMEX solver families. Each solver essentially implemented the same mathematical structure with different tableau coefficients.</p>
+
+    <blockquote>The key idea: replace hand-written stepping code with generic, tableau-driven dispatch — fewer lines of code, the same performance, and dramatically easier maintenance.</blockquote>
+
+    <p>The proposal covers four major workstreams:</p>
+    <ol>
+      <li><strong>IMEXTableau stabilization</strong> — Finalizing the generic type, dispatch infrastructure, and order condition verification using the framework from Kennedy & Carpenter (2003)</li>
+      <li><strong>RK family migration</strong> — Migrating existing ERK, DIRK, and IMEX solvers to the new generic infrastructure</li>
+      <li><strong>Multirate methods</strong> — Implementing MREIL, MIS (Knoth & Wensch, 2014), and MRGARK (Günther & Sandu, 2016) schemes for multi-scale problems</li>
+      <li><strong>Benchmarking</strong> — Ensuring zero-allocation, performance-parity with the existing handwritten kernels</li>
+    </ol>
+
+    <h2>What Made the Proposal Stand Out</h2>
+    <p>Looking back, I think several factors contributed to a successful proposal:</p>
+    <ul>
+      <li><strong>Demonstrated expertise:</strong> 16+ merged PRs showed I could write production-quality solver code</li>
+      <li><strong>Specificity:</strong> The proposal cited exact line counts, specific files, and concrete performance targets — not vague promises</li>
+      <li><strong>Progressive complexity:</strong> My contribution history showed growth from simple solvers to complex infrastructure</li>
+      <li><strong>Alignment with maintainer priorities:</strong> The refactoring directly addressed technical debt that Chris and other maintainers had identified</li>
+      <li><strong>Feasibility:</strong> The IMEXTableau framework (#3196) was already partially implemented, proving the concept worked</li>
+    </ul>
+
+    <h2>Advice for Future Applicants</h2>
+    <ol>
+      <li><strong>Start contributing months before GSoC season.</strong> My first PR was in late 2025. By the time applications opened, I had a track record.</li>
+      <li><strong>Read the source code deeply.</strong> Don't just use the library — understand its architecture. I spent weeks reading <code>perform_step!</code> implementations before writing my own.</li>
+      <li><strong>Communicate with mentors.</strong> I was active in the SciML Slack/Zulip channels, asked questions, and shared ideas. Mentors remember contributors who are engaged.</li>
+      <li><strong>Show progressive complexity.</strong> Start simple and escalate. Reviewers notice growth from "implemented a basic RK method" to "designed a generic tableau infrastructure."</li>
+      <li><strong>Write a specific proposal.</strong> Generic proposals get rejected. Know the code, cite line numbers, and show you've done the work.</li>
+      <li><strong>Choose a project you genuinely care about.</strong> The passion shows in both the proposal and the contributions.</li>
+    </ol>
+
+    <h2>What's Next</h2>
+    <p>Over the summer, I'll be posting weekly updates here documenting the technical work. The community bonding period starts now, and I'm diving deep into the remaining solver families that need migration.</p>
+
+    <p>Feel free to reach out if you have questions about contributing to SciML or applying for GSoC. You can find me on <a href="https://github.com/singhharsh1708">GitHub</a> or email me at <a href="mailto:hs1663531@gmail.com">hs1663531@gmail.com</a>.</p>
+
+    <h2>References</h2>
+    <ul>
+      <li>Rackauckas, C. & Nie, Q. (2017). <em>DifferentialEquations.jl – A Performant and Feature-Rich Ecosystem for Solving Differential Equations in Julia.</em> Journal of Open Research Software, 5(1): 15.</li>
+      <li>Kennedy, C. A. & Carpenter, M. H. (2003). <em>Additive Runge–Kutta schemes for convection–diffusion–reaction equations.</em> Applied Numerical Mathematics, 44(1-2), 139–181.</li>
+      <li>Günther, M. & Sandu, A. (2016). <em>Multirate generalized additive Runge–Kutta methods.</em> Numerische Mathematik, 133, 497–524.</li>
+      <li>Knoth, O. & Wensch, J. (2014). <em>Generalized split-explicit Runge–Kutta methods for the compressible Euler equations.</em> Monthly Weather Review, 142(5), 2067–2081.</li>
+    </ul>
+  </div>
+</article>
+
+<footer class="footer"><div class="container"><p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p></div></footer>
+<script src="../js/main.js"></script>
+</body>
+</html>

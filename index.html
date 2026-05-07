@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Harsh Singh — GSoC 2026 @ SciML</title>
+  <meta name="description" content="Harsh Singh — GSoC 2026 Contributor at SciML (NumFOCUS). Scientific computing, Julia, numerical methods, and open-source infrastructure.">
+  <meta property="og:title" content="Harsh Singh — GSoC 2026 @ SciML">
+  <meta property="og:description" content="Pre-final year IT undergrad focused on scientific computing, numerical methods, and high-performance Julia.">
+  <meta property="og:type" content="website">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚛</text></svg>">
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="container">
+    <a href="#" class="nav-logo">HS.</a>
+    <ul class="nav-links">
+      <li><a href="#about">About</a></li>
+      <li><a href="#gsoc">GSoC</a></li>
+      <li><a href="#contributions">Contributions</a></li>
+      <li><a href="#blog">Blog</a></li>
+      <li><a href="#skills">Skills</a></li>
+      <li><a href="#contact">Contact</a></li>
+      <li><button class="theme-toggle" id="theme-toggle">☀️</button></li>
+    </ul>
+    <button class="mobile-toggle" id="mobile-toggle">☰</button>
+  </div>
+</nav>
+
+<div class="mobile-nav" id="mobile-nav">
+  <a href="#about">About</a><a href="#gsoc">GSoC</a><a href="#contributions">Contributions</a>
+  <a href="#blog">Blog</a><a href="#skills">Skills</a><a href="#contact">Contact</a>
+  <button class="theme-toggle" onclick="document.getElementById('theme-toggle').click()">Toggle Theme</button>
+</div>
+
+<!-- Hero -->
+<section class="hero" id="hero">
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-badge"><span class="dot"></span> GSoC 2026 Selected</div>
+      <h1>Harsh <span class="gradient">Singh</span></h1>
+      <p class="hero-title" id="hero-typing" data-text="GSoC 2026 Contributor @ SciML (NumFOCUS)">GSoC 2026 Contributor @ SciML (NumFOCUS)</p>
+      <p class="hero-desc">Pre-final year IT undergraduate focused on scientific computing, numerical methods, high-performance Julia programming, and large-scale open-source infrastructure. Contributor to OrdinaryDiffEq.jl, SciMLBenchmarks.jl, and ODEInterfaceDiffEq.jl.</p>
+      <div class="hero-ctas">
+        <a href="#gsoc" class="btn btn-primary">🚀 View GSoC Project</a>
+        <a href="#blog" class="btn btn-outline">📝 Read Blogs</a>
+        <a href="https://github.com/singhharsh1708" target="_blank" class="btn btn-outline">⭐ GitHub</a>
+        <a href="#contact" class="btn btn-outline">📬 Contact</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- About -->
+<section id="about">
+  <div class="container">
+    <div class="section-header fade-in">
+      <p class="section-label">// About Me</p>
+      <h2 class="section-title">Building the Future of Scientific Computing</h2>
+    </div>
+    <div class="about-grid">
+      <div class="about-text fade-in">
+        <p>I'm an IT undergraduate at <strong>Sarvajanik College of Engineering and Technology</strong> (expected graduation: 2027) with a deep passion for numerical methods, solver infrastructure, and performance engineering.</p>
+        <p>As a <strong>Codeforces Specialist</strong> and competitive programmer, I bring algorithmic rigour to every problem. My open-source journey centres on the Julia ecosystem — specifically the SciML organization — where I contribute high-performance solver code to projects used by researchers and engineers worldwide.</p>
+        <p>My interests span scientific computing, differential equations, high-performance computing, and building robust, zero-allocation numerical infrastructure at scale.</p>
+      </div>
+      <div class="about-cards fade-in">
+        <div class="about-card"><div class="icon">🎓</div><h4>Education</h4><p>B.Tech IT — SCET, Gujarat (2023–2027)</p></div>
+        <div class="about-card"><div class="icon">🏆</div><h4>Competitive Programming</h4><p>Codeforces Specialist — Algorithmic problem solving</p></div>
+        <div class="about-card"><div class="icon">🔬</div><h4>Research Interests</h4><p>Numerical methods, solver design, performance optimization</p></div>
+        <div class="about-card"><div class="icon">🌍</div><h4>Open Source</h4><p>Active contributor to SciML / Julia ecosystem</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GSoC Project -->
+<section id="gsoc" style="background: var(--bg-secondary);">
+  <div class="container">
+    <div class="section-header fade-in">
+      <p class="section-label">// GSoC 2026</p>
+      <h2 class="section-title">Native Julia ODE, SDE, DAE, DDE &amp; PDE Solvers</h2>
+      <p class="section-desc">Refactoring the core of OrdinaryDiffEq.jl with generic tableau-driven solver infrastructure</p>
+    </div>
+    <div class="project-card fade-in">
+      <div class="project-meta">
+        <div class="project-meta-item"><span class="label">Organization</span><span class="value">SciML (NumFOCUS)</span></div>
+        <div class="project-meta-item"><span class="label">Year</span><span class="value">2026</span></div>
+        <div class="project-meta-item"><span class="label">Status</span><span class="value" style="color:var(--accent-2);">● Active</span></div>
+      </div>
+      <p class="project-overview">The project focuses on refactoring OrdinaryDiffEq.jl by introducing generic tableau-driven solver infrastructure to replace duplicated <code>perform_step!</code> implementations across Runge–Kutta and IMEX solver families. Targeting ~3,300 lines of duplicated stepping code for removal while maintaining performance parity with handwritten kernels.</p>
+      <div class="project-goals">
+        <h3>Key Goals</h3>
+        <ul class="goal-list">
+          <li>Introduce generic IMEXTableau abstraction</li>
+          <li>Replace duplicated perform_step! implementations</li>
+          <li>Refactor RK-based solver families</li>
+          <li>Add multirate methods (MREIL, MIS, MRGARK)</li>
+          <li>Ensure zero-allocation implementations</li>
+          <li>Maintain performance parity with handwritten kernels</li>
+        </ul>
+      </div>
+      <div class="mentors-list">
+        <strong>Mentors:</strong>&nbsp;
+        <span class="mentor-tag">Chris Rackauckas</span>
+        <span class="mentor-tag">Kanav Gupta</span>
+        <span class="mentor-tag">Utkarsh</span>
+        <span class="mentor-tag">Oscar Smith</span>
+      </div>
+      <div class="tech-highlights">
+        <span class="tech-tag">Generic Tableau Dispatch</span>
+        <span class="tech-tag">IMEX Runge–Kutta</span>
+        <span class="tech-tag">Multirate Integration</span>
+        <span class="tech-tag">Zero-Allocation Kernels</span>
+        <span class="tech-tag">Performance-Critical Julia</span>
+        <span class="tech-tag">Scientific Computing Infra</span>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div style="margin-top:60px;">
+      <h3 class="section-title" style="text-align:center;font-size:1.6rem;margin-bottom:40px;">Project Timeline</h3>
+      <div class="timeline">
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">May 2026</p><h4>Community Bonding</h4><p>Deep-dive into OrdinaryDiffEq.jl internals, align with mentors on design, benchmark existing solvers.</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">June 2026</p><h4>IMEXTableau Stabilization</h4><p>Finalize the generic IMEXTableau type, implement core dispatch infrastructure, first solver migrations.</p></div></div>
+        <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">July 2026</p><h4>RK Family Migration</h4><p>Migrate explicit, implicit, and IMEX Runge–Kutta solvers to generic tableau framework.</p></div></div>
+        <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Aug 2026</p><h4>Multirate Implementations</h4><p>Implement MREIL, MIS, and MRGARK multirate time integration methods.</p></div></div>
+        <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Sep 2026</p><h4>Benchmarks &amp; Documentation</h4><p>Comprehensive performance benchmarks, documentation, and final polish.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Contributions -->
+<section id="contributions">
+  <div class="container">
+    <div class="section-header fade-in">
+      <p class="section-label">// Contributions</p>
+      <h2 class="section-title">Open Source Impact</h2>
+      <p class="section-desc">Pull requests merged across the SciML ecosystem</p>
+    </div>
+    <div class="contrib-tabs fade-in">
+      <button class="contrib-tab active" data-tab="ode">OrdinaryDiffEq.jl</button>
+      <button class="contrib-tab" data-tab="bench">SciMLBenchmarks.jl</button>
+      <button class="contrib-tab" data-tab="interface">ODEInterfaceDiffEq.jl</button>
+    </div>
+    <!-- OrdinaryDiffEq -->
+    <div class="contrib-grid contrib-panel" data-panel="ode" style="display:grid;">
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3473" target="_blank"><div class="pr-card-header"><span class="pr-number">#3473</span><span class="pr-status merged">Merged</span></div><h4>SymplecticRK generic drift-kick migration</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3273" target="_blank"><div class="pr-card-header"><span class="pr-number">#3273</span><span class="pr-status merged">Merged</span></div><h4>Rosenbrock23/32 RodasTableau refactor</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3246" target="_blank"><div class="pr-card-header"><span class="pr-number">#3246</span><span class="pr-status merged">Merged</span></div><h4>pRRK22/33/54 methods</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3241" target="_blank"><div class="pr-card-header"><span class="pr-number">#3241</span><span class="pr-status merged">Merged</span></div><h4>16 ES-DG 3S* LSRK methods</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3215" target="_blank"><div class="pr-card-header"><span class="pr-number">#3215</span><span class="pr-status merged">Merged</span></div><h4>Ralston4 solver pipeline</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3196" target="_blank"><div class="pr-card-header"><span class="pr-number">#3196</span><span class="pr-status merged">Merged</span></div><h4>IMEXTableau framework</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3139" target="_blank"><div class="pr-card-header"><span class="pr-number">#3139</span><span class="pr-status merged">Merged</span></div><h4>MREEF multirate implementation</h4></a>
+    </div>
+    <!-- SciMLBenchmarks -->
+    <div class="contrib-grid contrib-panel" data-panel="bench" style="display:none;">
+      <a class="pr-card" href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1486" target="_blank"><div class="pr-card-header"><span class="pr-number">#1486</span><span class="pr-status merged">Merged</span></div><h4>Wheelset DAE Benchmark</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1485" target="_blank"><div class="pr-card-header"><span class="pr-number">#1485</span><span class="pr-status merged">Merged</span></div><h4>Andrews Squeezing Mechanism</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1484" target="_blank"><div class="pr-card-header"><span class="pr-number">#1484</span><span class="pr-status merged">Merged</span></div><h4>Car Axis Index-3 DAE Benchmark</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1483" target="_blank"><div class="pr-card-header"><span class="pr-number">#1483</span><span class="pr-status merged">Merged</span></div><h4>Charge Pump Index-2 DAE</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1481" target="_blank"><div class="pr-card-header"><span class="pr-number">#1481</span><span class="pr-status merged">Merged</span></div><h4>Water Tube System benchmark</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1480" target="_blank"><div class="pr-card-header"><span class="pr-number">#1480</span><span class="pr-status merged">Merged</span></div><h4>Fekete DAE Benchmark</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1461" target="_blank"><div class="pr-card-header"><span class="pr-number">#1461</span><span class="pr-status merged">Merged</span></div><h4>Two-Bit Adding Unit DAE</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1459" target="_blank"><div class="pr-card-header"><span class="pr-number">#1459</span><span class="pr-status merged">Merged</span></div><h4>Slider-Crank Mechanism benchmarks</h4></a>
+    </div>
+    <!-- ODEInterface -->
+    <div class="contrib-grid contrib-panel" data-panel="interface" style="display:none;">
+      <a class="pr-card" href="https://github.com/SciML/ODEInterfaceDiffEq.jl/pull/90" target="_blank"><div class="pr-card-header"><span class="pr-number">#90</span><span class="pr-status merged">Merged</span></div><h4>radau5 interface improvements</h4></a>
+    </div>
+    <!-- GitHub Graph -->
+    <div class="github-graph fade-in">
+      <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:16px;">📊 GitHub Contribution Activity (simulated)</p>
+      <div class="graph-grid" id="github-graph"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Blog -->
+<section id="blog" style="background: var(--bg-secondary);">
+  <div class="container">
+    <div class="section-header fade-in">
+      <p class="section-label">// Blog</p>
+      <h2 class="section-title">Technical Writing</h2>
+      <p class="section-desc">Deep dives into numerical computing, Julia performance, and GSoC progress</p>
+    </div>
+    <div class="blog-filters fade-in">
+      <button class="blog-filter active" data-cat="all">All</button>
+      <button class="blog-filter" data-cat="gsoc">GSoC Updates</button>
+      <button class="blog-filter" data-cat="julia">Julia Performance</button>
+      <button class="blog-filter" data-cat="numerical">Numerical Methods</button>
+      <button class="blog-filter" data-cat="opensource">Open Source</button>
+    </div>
+    <div class="blog-grid fade-in">
+      <a class="blog-card" href="blog/gsoc-selection.html" data-cat="gsoc">
+        <div class="blog-card-body">
+          <div class="blog-card-meta"><span class="blog-category">GSoC</span><span>May 7, 2026</span></div>
+          <h3>Getting Selected for GSoC 2026 with SciML</h3>
+          <p>My journey from first Julia PR to becoming a GSoC contributor — 16+ merged PRs, the proposal process, and advice for future applicants.</p>
+        </div>
+        <div class="blog-card-footer"><span>📅 May 7, 2026</span><span>10 min read</span></div>
+      </a>
+      <a class="blog-card" href="blog/imex-runge-kutta.html" data-cat="numerical">
+        <div class="blog-card-body">
+          <div class="blog-card-meta"><span class="blog-category">Numerical Methods</span><span>May 7, 2026</span></div>
+          <h3>Understanding IMEX Runge–Kutta Methods</h3>
+          <p>Double Butcher tableaus, SDIRK structure, order conditions, and stability — the mathematics behind implicit-explicit time integration.</p>
+        </div>
+        <div class="blog-card-footer"><span>📅 May 7, 2026</span><span>14 min read</span></div>
+      </a>
+      <a class="blog-card" href="blog/refactoring-tableaus.html" data-cat="gsoc">
+        <div class="blog-card-body">
+          <div class="blog-card-meta"><span class="blog-category">GSoC</span><span>May 7, 2026</span></div>
+          <h3>Refactoring 3000+ Lines into Generic Tableaus</h3>
+          <p>How we're replacing duplicated perform_step! code with type-parametric tableau dispatch — the architecture, migration strategy, and performance constraints.</p>
+        </div>
+        <div class="blog-card-footer"><span>📅 May 7, 2026</span><span>15 min read</span></div>
+      </a>
+      <a class="blog-card" href="blog/perform-step.html" data-cat="opensource">
+        <div class="blog-card-body">
+          <div class="blog-card-meta"><span class="blog-category">Open Source</span><span>May 7, 2026</span></div>
+          <h3>How perform_step! Works in OrdinaryDiffEq.jl</h3>
+          <p>An architectural walkthrough from the integration loop to cache dispatch, FSAL optimization, and adaptive step size control.</p>
+        </div>
+        <div class="blog-card-footer"><span>📅 May 7, 2026</span><span>16 min read</span></div>
+      </a>
+      <a class="blog-card" href="blog/zero-allocation-julia.html" data-cat="julia">
+        <div class="blog-card-body">
+          <div class="blog-card-meta"><span class="blog-category">Julia</span><span>May 7, 2026</span></div>
+          <h3>Zero Allocation Programming in Julia</h3>
+          <p>Practical patterns for allocation-free numerical kernels — broadcast fusion, cache patterns, StaticArrays, @inbounds, and AllocCheck.jl.</p>
+        </div>
+        <div class="blog-card-footer"><span>📅 May 7, 2026</span><span>12 min read</span></div>
+      </a>
+      <a class="blog-card" href="blog/multirate-solvers.html" data-cat="numerical">
+        <div class="blog-card-body">
+          <div class="blog-card-meta"><span class="blog-category">Numerical Methods</span><span>May 7, 2026</span></div>
+          <h3>Building Multirate Solvers: MREIL, MIS &amp; MRGARK</h3>
+          <p>Theory and implementation of multirate time integration — from MIS auxiliary ODEs to the MRGARK framework by Günther &amp; Sandu.</p>
+        </div>
+        <div class="blog-card-footer"><span>📅 May 7, 2026</span><span>13 min read</span></div>
+      </a>
+      <a class="blog-card" href="blog/lessons-sciml.html" data-cat="opensource">
+        <div class="blog-card-body">
+          <div class="blog-card-meta"><span class="blog-category">Open Source</span><span>May 7, 2026</span></div>
+          <h3>Lessons from Contributing to SciML</h3>
+          <p>What 16+ merged PRs taught me about numerical testing, performance as correctness, incremental PRs, and scientific software culture.</p>
+        </div>
+        <div class="blog-card-footer"><span>📅 May 7, 2026</span><span>9 min read</span></div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Skills -->
+<section id="skills">
+  <div class="container">
+    <div class="section-header fade-in">
+      <p class="section-label">// Skills</p>
+      <h2 class="section-title">Technical Arsenal</h2>
+    </div>
+    <div class="skills-grid fade-in">
+      <div class="skill-category">
+        <h3>💻 Languages</h3>
+        <div class="skill-tags">
+          <span class="skill-tag">🟣 Julia</span>
+          <span class="skill-tag">🔵 C++</span>
+          <span class="skill-tag">🐍 Python</span>
+          <span class="skill-tag">🔷 Go</span>
+          <span class="skill-tag">🔴 Scala</span>
+          <span class="skill-tag">🟡 JavaScript</span>
+        </div>
+      </div>
+      <div class="skill-category">
+        <h3>🔬 Domains</h3>
+        <div class="skill-tags">
+          <span class="skill-tag">Scientific Computing</span>
+          <span class="skill-tag">Numerical Methods</span>
+          <span class="skill-tag">Differential Equations</span>
+          <span class="skill-tag">High Performance Computing</span>
+          <span class="skill-tag">Open Source Development</span>
+          <span class="skill-tag">Performance Optimization</span>
+          <span class="skill-tag">Solver Design</span>
+          <span class="skill-tag">DSA</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Achievements -->
+<section id="achievements" style="background: var(--bg-secondary);">
+  <div class="container">
+    <div class="section-header fade-in">
+      <p class="section-label">// Achievements</p>
+      <h2 class="section-title">Milestones</h2>
+    </div>
+    <div class="achievements-grid fade-in">
+      <div class="achievement-card"><div class="ach-icon">🏅</div><h4>Google Summer of Code 2026</h4><p>Selected contributor under SciML (NumFOCUS)</p></div>
+      <div class="achievement-card"><div class="ach-icon">⚔️</div><h4>Codeforces Specialist</h4><p>Competitive programming — algorithmic excellence</p></div>
+      <div class="achievement-card"><div class="ach-icon">🏆</div><h4>Top 100 All-India (Physics)</h4><p>CUET — national-level ranking</p></div>
+      <div class="achievement-card"><div class="ach-icon">🎯</div><h4>JEE Main Qualified</h4><p>National engineering entrance examination</p></div>
+      <div class="achievement-card"><div class="ach-icon">🔀</div><h4>16+ Merged PRs in SciML</h4><p>Active contributor across the ecosystem</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- Contact -->
+<section id="contact">
+  <div class="container">
+    <div class="section-header fade-in">
+      <p class="section-label">// Contact</p>
+      <h2 class="section-title">Let's Connect</h2>
+      <p class="section-desc">Open to collaboration, research discussions, and opportunities</p>
+    </div>
+    <div class="contact-grid fade-in">
+      <a class="contact-card" href="https://github.com/singhharsh1708" target="_blank"><div class="contact-icon">🐙</div><h4>GitHub</h4><p>singhharsh1708</p></a>
+      <a class="contact-card" href="https://linkedin.com/in/harsh-s-08691222a" target="_blank"><div class="contact-icon">💼</div><h4>LinkedIn</h4><p>Harsh Singh</p></a>
+      <a class="contact-card" href="https://codeforces.com/profile/hs1663531" target="_blank"><div class="contact-icon">⚡</div><h4>Codeforces</h4><p>hs1663531</p></a>
+      <a class="contact-card" href="mailto:hs1663531@gmail.com"><div class="contact-icon">📧</div><h4>Email</h4><p>hs1663531@gmail.com</p></a>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

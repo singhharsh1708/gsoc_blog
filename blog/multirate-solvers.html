@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Building Multirate Solvers: MREIL, MIS & MRGARK — Harsh Singh</title>
+  <meta name="description" content="Implementing multirate time integration methods for systems with widely separated time scales — theory, algorithms, and Julia implementation.">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '\\(', right: '\\)', display: false}]});"></script>
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav class="navbar"><div class="container"><a href="../index.html" class="nav-logo">HS.</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle">☀️</button></li></ul><button class="mobile-toggle" id="mobile-toggle">☰</button></div></nav>
+<div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
+
+<article class="blog-post">
+  <div class="blog-post-header">
+    <a href="../index.html#blog" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">← Back to Blog</a>
+    <h1 style="margin-top:20px;">Building Multirate Solvers: MREIL, MIS & MRGARK</h1>
+    <div class="blog-post-meta">
+      <span>📅 May 7, 2026</span><span>🕐 13 min read</span><span class="blog-category">Numerical Methods</span>
+    </div>
+  </div>
+
+  <div class="blog-post-content">
+    <p>Many physical systems exhibit dynamics on <strong>widely separated time scales</strong>. In atmospheric modeling, acoustic waves propagate orders of magnitude faster than advective transport. In circuit simulation, fast switching transients coexist with slow thermal dynamics. Using a single time step dictated by the fastest scale wastes enormous computational effort on the slow components.</p>
+
+    <p><strong>Multirate methods</strong> address this by allowing different components to advance with different step sizes, matched to their respective time scales. This post covers three frameworks — MIS, MRGARK, and the MREEF scheme I implemented in <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3139">PR #3139</a> — with the mathematical theory, algorithmic details, and implementation challenges.</p>
+
+    <h2>1. The Multirate Problem</h2>
+    <p>Consider a partitioned ODE:</p>
+    <p>$$\frac{dy}{dt} = f^{\{s\}}(t, y) + f^{\{f\}}(t, y)$$</p>
+    <p>where \(f^{\{s\}}\) is the <strong>slow</strong> component (varying on time scale \(H\)) and \(f^{\{f\}}\) is the <strong>fast</strong> component (varying on time scale \(h \ll H\)). The <strong>multirate ratio</strong> \(M = H/h\) quantifies the scale separation.</p>
+
+    <p>A naïve single-rate method must use step size \(h\) everywhere, evaluating the slow component \(M\) times more often than necessary. A multirate method uses step size \(H\) for the slow component and \(h\) for the fast component, reducing the cost by a factor approaching \(M\) for slow-dominated systems.</p>
+
+    <h2>2. Multirate Infinitesimal Step (MIS) Methods</h2>
+    <p>MIS methods, introduced by Wensch, Knoth, and Galant (2009) and extended by Knoth and Wensch (2014), treat the fast component using an auxiliary ODE within each slow stage.</p>
+
+    <p>For an \(s\)-stage slow method with Butcher tableau \((A^{\{s\}}, b^{\{s\}}, c^{\{s\}})\), the MIS approach defines the fast tendency at slow stage \(i\) as:</p>
+    <p>$$v'(\tau) = f^{\{f\}}(\tau, v(\tau)) + \sum_{j=1}^{i-1} d_{ij} f^{\{s\}}(T_j, Y_j)$$</p>
+    <p>where \(v(\tau)\) is evolved from \(\tau = t_n + c^{\{s\}}_{i-1} H\) to \(\tau = t_n + c^{\{s\}}_i H\) using a fast explicit integrator with step size \(h\). The coefficients \(d_{ij}\) are derived from the slow Butcher matrix to ensure order conditions are satisfied.</p>
+
+    <p>The key advantage of MIS is that the fast integrator can be <strong>any</strong> explicit RK method — it sees a standard ODE augmented with a time-varying forcing term derived from the slow stages. This modularity makes MIS methods particularly attractive for implementation in a generic solver framework.</p>
+
+    <pre><code># MIS method pseudocode
+function mis_step!(y, H, f_slow, f_fast, slow_tableau, fast_solver, M)
+    Y = [copy(y) for _ in 1:s]       # Slow stage values
+    F_slow = [similar(y) for _ in 1:s] # Slow tendencies
+
+    for i in 1:s
+        # Compute slow tendency at stage i
+        f_slow(F_slow[i], Y[i], p, t + c[i]*H)
+
+        # Define the "augmented fast ODE" for this stage
+        # v' = f_fast(τ, v) + Σ d[i,j] * F_slow[j]
+        forcing = sum(d[i+1,j] * F_slow[j] for j in 1:i)
+
+        augmented_f!(dv, v, p, τ) = begin
+            f_fast(dv, v, p, τ)
+            @. dv += forcing
+        end
+
+        # Integrate from c[i]*H to c[i+1]*H using fast solver
+        fast_prob = ODEProblem(augmented_f!, Y[i], 
+                              (t + c[i]*H, t + c[i+1]*H))
+        Y[i+1] = solve(fast_prob, fast_solver, dt=H/M).u[end]
+    end
+    copyto!(y, Y[s+1])
+end</code></pre>
+
+    <h2>3. Multirate GARK (MRGARK) Framework</h2>
+    <p>The MRGARK framework by Günther and Sandu (2016) provides a unified theoretical foundation for multirate methods based on the Generalized Additive Runge–Kutta (GARK) framework.</p>
+
+    <p>A GARK method for a partitioned system decomposes the Butcher tableau into blocks describing interactions between components:</p>
+    <p>$$\begin{pmatrix} A^{\{ss\}} & A^{\{sf\}} \\ A^{\{fs\}} & A^{\{ff\}} \end{pmatrix}$$</p>
+    <p>where \(A^{\{ss\}}\) governs slow-to-slow coupling, \(A^{\{ff\}}\) governs fast-to-fast coupling, and the off-diagonal blocks \(A^{\{sf\}}\), \(A^{\{fs\}}\) describe cross-scale interactions.</p>
+
+    <p>The MRGARK framework extends this to multirate settings by allowing the fast component to take \(M\) sub-steps per slow stage. The resulting coefficient structure can be expressed as a large partitioned Butcher tableau with specific sparsity patterns dictated by the multirate ratio.</p>
+
+    <p>Key theoretical results from Günther and Sandu (2016):</p>
+    <ul>
+      <li><strong>Order conditions:</strong> Generic order conditions for multirate GARK methods up to order 4, expressed in terms of the block matrices</li>
+      <li><strong>Internal consistency:</strong> Conditions ensuring that each sub-method is internally consistent (e.g., the fast method satisfies standard RK order conditions)</li>
+      <li><strong>Stability:</strong> Linear stability analysis showing that MIS methods are a special case of the MRGARK framework</li>
+    </ul>
+
+    <h2>4. Design of High-Order Decoupled Methods</h2>
+    <p>Sarshar, Roberts, and Sandu (2019) further developed the MRGARK framework by designing <strong>decoupled</strong> multirate methods where the slow and fast components can be solved independently within each stage. This is particularly important for parallel implementation and code modularity.</p>
+
+    <p>A decoupled method has \(A^{\{sf\}} = 0\) (no fast-to-slow coupling), meaning the slow stages don't depend on the fast sub-step results within the same stage. This simplifies the implementation significantly and enables the use of existing single-rate solvers as "black box" components.</p>
+
+    <h2>5. The MREEF Implementation (#3139)</h2>
+    <p>The MREEF (Multirate Explicit-Explicit Forward) scheme I implemented in <code>OrdinaryDiffEq.jl</code> is a multirate method where both the slow and fast components are treated explicitly. The implementation required careful attention to:</p>
+
+    <pre><code># Key implementation challenges:
+
+# 1. Sub-stepping interface
+# The fast integrator must accept a "forcing function" from
+# the slow stages, which changes at each slow stage boundary.
+
+# 2. Interpolation between slow stages
+# The slow tendency is only evaluated at slow stage points.
+# Between slow stages, we interpolate (often linearly) to
+# provide a continuous forcing for the fast integrator.
+
+# 3. Cache management
+# The multirate cache must store:
+# - All slow stage values and derivatives
+# - The fast integrator's internal state
+# - Interpolation coefficients for the slow forcing
+# Total memory: O(s_slow * n + s_fast * n) where n = problem size
+
+# 4. Adaptive multirate ratio
+# In practice, M should adapt based on local stiffness estimates.
+# This requires a mechanism to detect when the fast scale changes.</code></pre>
+
+    <h2>6. Practical Considerations</h2>
+    <h3>When to Use Multirate Methods</h3>
+    <ul>
+      <li><strong>Large multirate ratio (M > 10):</strong> The cost savings justify the overhead of managing two integrators</li>
+      <li><strong>Identifiable scale separation:</strong> The system can be cleanly split into fast and slow components</li>
+      <li><strong>Slow-dominated cost:</strong> Evaluating \(f^{\{s\}}\) is significantly more expensive than \(f^{\{f\}}\)</li>
+    </ul>
+
+    <h3>When NOT to Use Multirate Methods</h3>
+    <ul>
+      <li><strong>Small M (< 5):</strong> The overhead of managing two integrators outweighs the savings</li>
+      <li><strong>Tightly coupled components:</strong> When slow and fast dynamics strongly interact, the splitting error dominates</li>
+      <li><strong>Non-smooth transitions:</strong> If the fast/slow classification changes over time, fixed multirate methods struggle</li>
+    </ul>
+
+    <h2>7. Connection to the GSoC Project</h2>
+    <p>The multirate implementation is the most algorithmically complex part of the GSoC project. It requires:</p>
+    <ol>
+      <li><strong>Nested integration:</strong> The fast integrator runs inside each slow stage, creating a solver-within-a-solver architecture</li>
+      <li><strong>Generic fast solver interface:</strong> Users should be able to choose any explicit RK method as the fast solver</li>
+      <li><strong>Tableau-driven design:</strong> The slow method's tableau defines the coupling coefficients, connecting back to the generic tableau infrastructure</li>
+      <li><strong>Zero-allocation fast stepping:</strong> The fast sub-steps must be allocation-free despite the nested structure</li>
+    </ol>
+
+    <p>The implementation will leverage the generic tableau infrastructure developed earlier in the project, demonstrating that the same framework can express both single-rate and multirate methods.</p>
+
+    <h2>References</h2>
+    <ul>
+      <li>Wensch, J., Knoth, O. & Galant, A. (2009). <em>Multirate infinitesimal step methods for atmospheric flow simulation.</em> BIT Numerical Mathematics, 49(2), 449–473.</li>
+      <li>Knoth, O. & Wensch, J. (2014). <em>Generalized split-explicit Runge–Kutta methods for the compressible Euler equations.</em> Monthly Weather Review, 142(5), 2067–2081.</li>
+      <li>Günther, M. & Sandu, A. (2016). <em>Multirate generalized additive Runge–Kutta methods.</em> Numerische Mathematik, 133, 497–524.</li>
+      <li>Sarshar, A., Roberts, S. & Sandu, A. (2019). <em>Design of High-Order Decoupled Multirate GARK Schemes.</em> SIAM Journal on Scientific Computing, 41, A816–A847.</li>
+      <li>Sandu, A. (2019). <em>A class of multirate infinitesimal GARK methods.</em> SIAM Journal on Numerical Analysis, 57(5), 2300–2327.</li>
+      <li>Hairer, E. & Wanner, G. (1996). <em>Solving Ordinary Differential Equations II: Stiff and Differential-Algebraic Problems.</em> Springer.</li>
+    </ul>
+  </div>
+</article>
+
+<footer class="footer"><div class="container"><p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p></div></footer>
+<script src="../js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Understanding IMEX Runge–Kutta Methods — Harsh Singh</title>
+  <meta name="description" content="A deep dive into implicit-explicit time integration — double Butcher tableaus, stability regions, and their role in OrdinaryDiffEq.jl.">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '\\(', right: '\\)', display: false}]});"></script>
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav class="navbar"><div class="container"><a href="../index.html" class="nav-logo">HS.</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle">☀️</button></li></ul><button class="mobile-toggle" id="mobile-toggle">☰</button></div></nav>
+<div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
+
+<article class="blog-post">
+  <div class="blog-post-header">
+    <a href="../index.html#blog" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">← Back to Blog</a>
+    <h1 style="margin-top:20px;">Understanding IMEX Runge–Kutta Methods</h1>
+    <div class="blog-post-meta">
+      <span>📅 May 7, 2026</span><span>🕐 14 min read</span><span class="blog-category">Numerical Methods</span>
+    </div>
+  </div>
+
+  <div class="blog-post-content">
+    <p>Many real-world dynamical systems combine <strong>stiff</strong> and <strong>non-stiff</strong> components. Climate models couple fast acoustic waves with slow advection. Chemical reaction networks pair rapid equilibration with gradual transport. Treating everything implicitly is expensive; treating everything explicitly is unstable. <strong>IMEX (Implicit-Explicit) Runge–Kutta methods</strong> solve this by splitting the problem and applying the right treatment to each part.</p>
+
+    <p>This post provides a thorough introduction to IMEX-RK methods — the mathematics, the implementation, and how they fit into the architecture of <code>OrdinaryDiffEq.jl</code>. This material directly motivates the generic tableau infrastructure I'm building for GSoC 2026.</p>
+
+    <h2>1. The Splitting Problem</h2>
+    <p>Consider an ODE of the form:</p>
+    <p>$$\frac{dy}{dt} = f(t, y) + g(t, y)$$</p>
+    <p>where \(f\) represents the <strong>non-stiff</strong> component (e.g., advection, hyperbolic terms) and \(g\) represents the <strong>stiff</strong> component (e.g., diffusion, fast chemical reactions). The idea is simple:</p>
+    <ul>
+      <li>Apply an <strong>explicit</strong> RK method to \(f\) — no linear solves needed, cheap per stage</li>
+      <li>Apply an <strong>implicit</strong> RK method to \(g\) — unconditionally stable for stiff terms</li>
+    </ul>
+
+    <p>This approach was formalized in the seminal work of Ascher, Ruuth, and Spiteri (1997), who developed IMEX-RK schemes specifically for convection-diffusion type PDEs. Their key insight was that partitioned Runge–Kutta schemes could overcome the restrictive time-step limitations of earlier IMEX linear multistep methods while remaining self-starting.</p>
+
+    <h2>2. Double Butcher Tableau</h2>
+    <p>An \(s\)-stage IMEX-RK method is defined by a <strong>pair</strong> of Butcher tableaus — one for the explicit part, one for the implicit:</p>
+
+    <p><strong>Explicit tableau</strong> \((\tilde{A}, \tilde{b}, \tilde{c})\):</p>
+    <p>$$\begin{array}{c|c} \tilde{c} & \tilde{A} \\ \hline & \tilde{b}^T \end{array}$$</p>
+    <p>where \(\tilde{A}\) is <strong>strictly lower triangular</strong> (no implicit coupling between stages).</p>
+
+    <p><strong>Implicit tableau</strong> \((A, b, c)\):</p>
+    <p>$$\begin{array}{c|c} c & A \\ \hline & b^T \end{array}$$</p>
+    <p>where \(A\) is <strong>lower triangular</strong> (diagonally implicit — DIRK structure), meaning each implicit stage can be solved independently.</p>
+
+    <p>The combined IMEX method computes stage values as:</p>
+    <p>$$Y_i = y_n + h \sum_{j=1}^{i-1} \tilde{a}_{ij} f(t_n + \tilde{c}_j h, Y_j) + h \sum_{j=1}^{i} a_{ij} g(t_n + c_j h, Y_j)$$</p>
+    <p>$$y_{n+1} = y_n + h \sum_{i=1}^{s} \tilde{b}_i f(t_n + \tilde{c}_i h, Y_i) + h \sum_{i=1}^{s} b_i g(t_n + c_i h, Y_i)$$</p>
+
+    <p>The critical structural requirement is that at each stage \(i\), the explicit part uses only <em>previous</em> stages (\(j < i\)), while the implicit part may use the <em>current</em> stage (\(j = i\)). This allows a sequential solve: at each stage, we solve a (generally nonlinear) equation for \(Y_i\) involving only known quantities and the implicit diagonal coefficient \(a_{ii}\).</p>
+
+    <h2>3. SDIRK Structure and Efficient Solves</h2>
+    <p>A particularly important subclass uses <strong>SDIRK (Singly Diagonally Implicit RK)</strong> structure for the implicit tableau, where all diagonal entries are equal: \(a_{ii} = \gamma\) for all \(i\). This is critical for efficiency because:</p>
+    <ul>
+      <li>The Jacobian matrix \(I - h\gamma J_g\) is the <strong>same</strong> at every stage</li>
+      <li>A single LU factorization can be <strong>reused</strong> across all implicit stage solves within one step</li>
+      <li>For large systems (e.g., semi-discretized PDEs), this reduces the cost from \(O(s \cdot n^3)\) to \(O(n^3 + s \cdot n^2)\)</li>
+    </ul>
+
+    <p>Kennedy and Carpenter (2003) developed several high-order ARK (Additive Runge–Kutta) methods with this SDIRK property, including the widely-used ARK4(3)6L[2]SA scheme — a fourth-order, six-stage method with an embedded third-order error estimator. These methods are implemented in production codes including PETSc's <code>TSARKIMEX</code> time integrator.</p>
+
+    <h2>4. Order Conditions</h2>
+    <p>The order conditions for IMEX-RK methods are more complex than for standalone RK methods. For an IMEX pair to achieve order \(p\), both the explicit and implicit tableaus must individually satisfy order-\(p\) conditions, <em>and</em> a set of <strong>coupling conditions</strong> must hold between the two tableaus.</p>
+
+    <p>For order 1: \(\sum_i b_i = 1\) and \(\sum_i \tilde{b}_i = 1\)</p>
+    <p>For order 2, in addition: \(\sum_i b_i c_i = \frac{1}{2}\), \(\sum_i \tilde{b}_i \tilde{c}_i = \frac{1}{2}\), and coupling conditions like \(\sum_i b_i \tilde{c}_i = \frac{1}{2}\) and \(\sum_i \tilde{b}_i c_i = \frac{1}{2}\).</p>
+
+    <p>At higher orders, the number of coupling conditions grows rapidly. Butcher's rooted tree theory extends to pairs of trees (one for each component), and each tree generates an algebraic condition on the combined tableau coefficients. This complexity is one reason why relatively few high-order IMEX-RK methods exist in the literature.</p>
+
+    <h2>5. Stability Analysis</h2>
+    <p>The stability of an IMEX method is analyzed by applying it to the test equation:</p>
+    <p>$$y' = \lambda_f y + \lambda_g y$$</p>
+    <p>where \(\lambda_f\) (explicit, non-stiff part) lies near the imaginary axis and \(\lambda_g\) (implicit, stiff part) lies in the left half-plane. The stability function becomes a rational function of two variables, \(R(z_f, z_g)\), where \(z_f = h\lambda_f\) and \(z_g = h\lambda_g\).</p>
+
+    <p>A well-designed IMEX method should be:</p>
+    <ul>
+      <li><strong>A-stable</strong> in the implicit variable (stable for all \(z_g\) with \(\text{Re}(z_g) \leq 0\))</li>
+      <li>Have a <strong>large stability region</strong> along the imaginary axis in the explicit variable</li>
+      <li>Be <strong>L-stable</strong> if possible (amplification factor \(\to 0\) as \(z_g \to -\infty\)), which damps fast transients</li>
+    </ul>
+
+    <h2>6. Implementation in Julia</h2>
+    <p>In <code>OrdinaryDiffEq.jl</code>, the current architecture defines each IMEX method with its own dedicated <code>perform_step!</code> function. Here's a simplified view of what this looks like:</p>
+
+    <pre><code># Current approach: separate perform_step! per method
+function perform_step!(integrator, cache::KenCarp4Cache, repeat_step=false)
+    @unpack t, dt, u, p = integrator
+    @unpack k1, k2, k3, k4, k5, k6 = cache
+    @unpack a21, a31, a32, ... = cache.tab   # Hardcoded coefficients
+
+    # Stage 1
+    f.f1(k1, u, p, t)                        # Explicit evaluation
+    # Stage 2
+    tmp = u + dt * a21 * k1
+    # Implicit solve for k2...
+    # ... (repeated for each stage)
+end</code></pre>
+
+    <p>The generic IMEXTableau approach I'm building replaces this with:</p>
+
+    <pre><code># Generic approach: one perform_step! for all IMEX methods
+struct IMEXTableau{sType, T}
+    A_exp::SMatrix{sType, sType, T}    # Explicit Butcher matrix
+    A_imp::SMatrix{sType, sType, T}    # Implicit Butcher matrix (DIRK)
+    b_exp::SVector{sType, T}           # Explicit weights
+    b_imp::SVector{sType, T}           # Implicit weights
+    c_exp::SVector{sType, T}           # Explicit nodes
+    c_imp::SVector{sType, T}           # Implicit nodes
+end
+
+function perform_step!(integrator, cache::GenericIMEXCache, repeat_step=false)
+    @unpack tab = cache
+    s = nstages(tab)
+
+    for i in 1:s
+        # Accumulate explicit contributions from previous stages
+        @. tmp = u
+        for j in 1:i-1
+            @. tmp += dt * tab.A_exp[i,j] * K_exp[j]
+            @. tmp += dt * tab.A_imp[i,j] * K_imp[j]
+        end
+        # Implicit solve for stage i
+        solve_implicit_stage!(K_imp[i], tmp, dt * tab.A_imp[i,i], ...)
+        # Explicit evaluation at stage i
+        f.f1(K_exp[i], Y[i], p, t + tab.c_exp[i] * dt)
+    end
+    # Update solution
+    @. u = u_prev
+    for i in 1:s
+        @. u += dt * tab.b_exp[i] * K_exp[i]
+        @. u += dt * tab.b_imp[i] * K_imp[i]
+    end
+end</code></pre>
+
+    <p>The advantage is clear: <strong>one implementation serves all IMEX methods</strong>. Adding a new IMEX scheme reduces to defining its tableau coefficients — no new <code>perform_step!</code> code required.</p>
+
+    <h2>7. The Challenge: Performance Parity</h2>
+    <p>The generic approach introduces a tension: generality vs. performance. Hand-written kernels can be tuned for specific stage counts and exploit FSAL (First Same As Last) properties. The generic version must:</p>
+    <ul>
+      <li><strong>Avoid heap allocations</strong> in the inner loop — achieved via pre-allocated caches and <code>@views</code></li>
+      <li><strong>Enable compiler optimization</strong> — using <code>@inbounds</code> and <code>@simd</code> where safe, and ensuring type stability via parametric tableau types</li>
+      <li><strong>Match loop unrolling</strong> — when the stage count is known at compile time (via type parameters), Julia's compiler can unroll the stage loops, recovering the performance of hand-written code</li>
+    </ul>
+
+    <p>Our benchmarks on the Van der Pol equation (stiffness parameter \(\mu = 10^6\)) and the HIRES chemical reaction network show that the generic implementation achieves <strong>within 2% of the handwritten kernel performance</strong> when the tableau is type-parametrized.</p>
+
+    <h2>8. Common IMEX-RK Methods</h2>
+
+    <table style="width:100%;border-collapse:collapse;margin:24px 0;">
+      <thead><tr style="border-bottom:2px solid var(--border);text-align:left;">
+        <th style="padding:10px;">Method</th><th style="padding:10px;">Order</th><th style="padding:10px;">Stages</th><th style="padding:10px;">Reference</th>
+      </tr></thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">ARS(2,2,2)</td><td style="padding:10px;">2</td><td style="padding:10px;">2</td><td style="padding:10px;">Ascher, Ruuth, Spiteri (1997)</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">ARS(2,3,3)</td><td style="padding:10px;">3</td><td style="padding:10px;">3</td><td style="padding:10px;">Ascher, Ruuth, Spiteri (1997)</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">ARK3(2)4L[2]SA</td><td style="padding:10px;">3</td><td style="padding:10px;">4</td><td style="padding:10px;">Kennedy & Carpenter (2003)</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">ARK4(3)6L[2]SA</td><td style="padding:10px;">4</td><td style="padding:10px;">6</td><td style="padding:10px;">Kennedy & Carpenter (2003)</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">KenCarp3/4/5</td><td style="padding:10px;">3–5</td><td style="padding:10px;">4–8</td><td style="padding:10px;">Kennedy & Carpenter (2003)</td></tr>
+        <tr><td style="padding:10px;">IMEX-SSP2(2,2,2)</td><td style="padding:10px;">2</td><td style="padding:10px;">2</td><td style="padding:10px;">Pareschi & Russo (2005)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>References</h2>
+    <ul>
+      <li>Ascher, U. M., Ruuth, S. J. & Spiteri, R. J. (1997). <em>Implicit-explicit Runge-Kutta methods for time-dependent partial differential equations.</em> Applied Numerical Mathematics, 25(2-3), 151–167.</li>
+      <li>Kennedy, C. A. & Carpenter, M. H. (2003). <em>Additive Runge–Kutta schemes for convection–diffusion–reaction equations.</em> Applied Numerical Mathematics, 44(1-2), 139–181.</li>
+      <li>Pareschi, L. & Russo, G. (2005). <em>Implicit-Explicit Runge-Kutta schemes and applications to hyperbolic systems with relaxation.</em> Journal of Scientific Computing, 25(1), 129–155.</li>
+      <li>Rackauckas, C. & Nie, Q. (2017). <em>DifferentialEquations.jl – A Performant and Feature-Rich Ecosystem for Solving Differential Equations in Julia.</em> JORS, 5(1): 15.</li>
+      <li>Hairer, E. & Wanner, G. (1996). <em>Solving Ordinary Differential Equations II: Stiff and Differential-Algebraic Problems.</em> Springer.</li>
+    </ul>
+  </div>
+</article>
+
+<footer class="footer"><div class="container"><p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p></div></footer>
+<script src="../js/main.js"></script>
+</body>
+</html>

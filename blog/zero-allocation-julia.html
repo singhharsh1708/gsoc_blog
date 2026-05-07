@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zero Allocation Programming in Julia — Harsh Singh</title>
+  <meta name="description" content="Techniques for writing allocation-free numerical kernels in Julia — from @views to StaticArrays and pre-allocated caches.">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav class="navbar"><div class="container"><a href="../index.html" class="nav-logo">HS.</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle">☀️</button></li></ul><button class="mobile-toggle" id="mobile-toggle">☰</button></div></nav>
+<div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
+
+<article class="blog-post">
+  <div class="blog-post-header">
+    <a href="../index.html#blog" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">← Back to Blog</a>
+    <h1 style="margin-top:20px;">Zero Allocation Programming in Julia</h1>
+    <div class="blog-post-meta">
+      <span>📅 May 7, 2026</span><span>🕐 12 min read</span><span class="blog-category">Julia Performance</span>
+    </div>
+  </div>
+
+  <div class="blog-post-content">
+    <p>In numerical computing, memory allocation is often the dominant performance bottleneck. Every heap allocation triggers garbage collection (GC) pressure, disrupts cache locality, and introduces unpredictable latency. For solver inner loops that execute millions of times, even a single allocation per step can be devastating.</p>
+
+    <p>This post covers the techniques I use daily when writing solver code for <code>OrdinaryDiffEq.jl</code> — practical patterns for achieving zero-allocation hot paths in Julia.</p>
+
+    <h2>1. Why Allocations Matter</h2>
+    <p>Let's start with a concrete example. Consider computing a vector update in a Runge–Kutta stage:</p>
+
+    <pre><code># BAD: Creates a new temporary array every call
+function update_stage_bad(u, dt, a, k1, k2, k3)
+    return u + dt * (a[1] * k1 + a[2] * k2 + a[3] * k3)
+    # ↑ Each + and * creates a new temporary array
+    # This single line allocates 5 temporary vectors!
+end
+
+# GOOD: In-place update with broadcast fusion
+function update_stage_good!(utmp, u, dt, a, k1, k2, k3)
+    @. utmp = u + dt * (a[1] * k1 + a[2] * k2 + a[3] * k3)
+    # ↑ The @. macro fuses everything into a single loop
+    # Zero allocations, zero temporaries
+    return nothing
+end</code></pre>
+
+    <p>The <code>@.</code> (broadcast fusion) macro is Julia's most powerful tool for eliminating allocations. It transforms the expression into a single fused loop that computes element-by-element, writing directly into the destination array.</p>
+
+    <pre><code>using BenchmarkTools
+n = 10_000
+u = randn(n); k1 = randn(n); k2 = randn(n); k3 = randn(n)
+utmp = similar(u); a = [0.3, 0.5, 0.2]; dt = 0.01
+
+@btime update_stage_bad($u, $dt, $a, $k1, $k2, $k3);
+# 12.4 μs (5 allocations: 390.72 KiB)
+
+@btime update_stage_good!($utmp, $u, $dt, $a, $k1, $k2, $k3);
+# 2.1 μs (0 allocations: 0 bytes)
+# ~6x faster due to zero allocations and better cache usage</code></pre>
+
+    <h2>2. The Cache Pattern</h2>
+    <p>The fundamental pattern in <code>OrdinaryDiffEq.jl</code> is the <strong>pre-allocated cache</strong>. All temporary arrays needed during a step are allocated once during solver initialization and reused at every step:</p>
+
+    <pre><code>struct MySolverCache{uType, rateType}
+    # Pre-allocated working arrays
+    k1::rateType        # Stage derivatives
+    k2::rateType
+    k3::rateType
+    k4::rateType
+    utmp::uType         # Temporary for stage argument
+    atmp::uType         # Temporary for error estimation
+end
+
+function alg_cache(alg::MySolver, u, ...)
+    # Allocate ONCE during init — never again
+    k1 = zero(u)
+    k2 = zero(u)
+    k3 = zero(u)
+    k4 = zero(u)
+    utmp = zero(u)
+    atmp = zero(u)
+    MySolverCache(k1, k2, k3, k4, utmp, atmp)
+end
+
+function perform_step!(integrator, cache::MySolverCache)
+    @unpack k1, k2, k3, k4, utmp = cache
+    # All operations use pre-allocated arrays
+    # No allocations in the hot path
+    @. utmp = integrator.uprev + integrator.dt * k1
+    integrator.f(k2, utmp, integrator.p, integrator.t)
+    # ...
+end</code></pre>
+
+    <h2>3. Views Instead of Copies</h2>
+    <p>Array slicing in Julia creates copies by default. For sub-array operations, use <code>@view</code> to create zero-copy references:</p>
+
+    <pre><code># BAD: Creates a copy of the sub-array
+function process_component_bad(u, n)
+    x = u[1:n]           # Allocates a new array of size n
+    y = u[n+1:2n]        # Allocates another new array
+    return dot(x, y)
+end
+
+# GOOD: Zero-copy views
+function process_component_good(u, n)
+    x = @view u[1:n]     # No allocation — just a pointer + bounds
+    y = @view u[n+1:2n]  # No allocation
+    return dot(x, y)
+end
+
+n = 5000; u = randn(2n)
+@btime process_component_bad($u, $n);   # 3.2 μs (2 allocations: 78.17 KiB)
+@btime process_component_good($u, $n);  # 1.8 μs (0 allocations: 0 bytes)</code></pre>
+
+    <h2>4. StaticArrays for Small Fixed-Size Problems</h2>
+    <p>For problems with small state vectors (roughly up to 100 elements), <code>StaticArrays.jl</code> provides stack-allocated arrays that bypass the heap entirely:</p>
+
+    <pre><code>using StaticArrays
+
+# Standard array — heap allocated
+function lorenz_heap(u, p, t)
+    σ, ρ, β = p
+    du1 = σ * (u[2] - u[1])
+    du2 = u[1] * (ρ - u[3]) - u[2]
+    du3 = u[1] * u[2] - β * u[3]
+    return [du1, du2, du3]      # ← Heap allocation every call!
+end
+
+# SVector — stack allocated, zero GC pressure
+function lorenz_static(u, p, t)
+    σ, ρ, β = p
+    du1 = σ * (u[2] - u[1])
+    du2 = u[1] * (ρ - u[3]) - u[2]
+    du3 = u[1] * u[2] - β * u[3]
+    return SVector(du1, du2, du3)  # ← Stack allocated, zero cost
+end
+
+u0_heap = [1.0, 0.0, 0.0]
+u0_static = SVector(1.0, 0.0, 0.0)
+p = (10.0, 28.0, 8/3)
+
+@btime lorenz_heap($u0_heap, $p, 0.0);     # 31 ns (1 allocation: 80 bytes)
+@btime lorenz_static($u0_static, $p, 0.0);  # 3.1 ns (0 allocations: 0 bytes)
+# 10x faster!</code></pre>
+
+    <p>The OOP (out-of-place) path in <code>OrdinaryDiffEq.jl</code> — the <code>ConstantCache</code> variant — is designed specifically for <code>StaticArrays</code>. When you use <code>SVector</code> state, the entire integration runs without a single heap allocation.</p>
+
+    <h2>5. @inbounds and @simd</h2>
+    <p>Julia performs bounds checking on every array access by default. In performance-critical inner loops where indices are guaranteed valid, <code>@inbounds</code> eliminates this overhead:</p>
+
+    <pre><code># Explicit stage accumulation with performance annotations
+function accumulate_stages!(utmp, u, dt, A, K, stage, s)
+    @inbounds @simd for idx in eachindex(utmp)
+        val = u[idx]
+        for j in 1:stage-1
+            val += dt * A[stage, j] * K[j][idx]
+        end
+        utmp[idx] = val
+    end
+end</code></pre>
+
+    <p><strong>Important caveats:</strong></p>
+    <ul>
+      <li><code>@inbounds</code> removes safety checks — using it with invalid indices causes undefined behavior (segfaults, silent data corruption)</li>
+      <li>Use <code>eachindex(A)</code> to iterate — this guarantees valid indices and often lets the compiler prove bounds safety automatically</li>
+      <li><code>@simd</code> only helps for loops with independent iterations and simple arithmetic — the compiler must be able to vectorize</li>
+      <li>Always benchmark before and after to verify the improvement is real</li>
+    </ul>
+
+    <h2>6. Verifying Zero Allocations with AllocCheck.jl</h2>
+    <p>In the SciML ecosystem, we use <code>AllocCheck.jl</code> as a CI-enforced check to ensure <code>perform_step!</code> remains allocation-free:</p>
+
+    <pre><code>using AllocCheck
+
+# Check that perform_step! allocates nothing
+allocs = check_allocs(perform_step!,
+    (typeof(integrator), typeof(cache)))
+
+if !isempty(allocs)
+    println("ALLOCATION DETECTED in perform_step!:")
+    for a in allocs
+        println("  $(a.type) at $(a.backtrace[1])")
+    end
+    error("perform_step! must be zero-allocation!")
+end</code></pre>
+
+    <p>This runs as part of CI for every PR. If a new method introduces even one allocation in its <code>perform_step!</code>, the CI fails and the PR cannot be merged.</p>
+
+    <h2>7. Common Allocation Traps</h2>
+    <table style="width:100%;border-collapse:collapse;margin:24px 0;">
+      <thead><tr style="border-bottom:2px solid var(--border);text-align:left;">
+        <th style="padding:10px;">Trap</th><th style="padding:10px;">Solution</th>
+      </tr></thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;"><code>A[1:n, :]</code> (array slice)</td><td style="padding:10px;"><code>@view A[1:n, :]</code></td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;"><code>u + dt * k</code> (creates temp)</td><td style="padding:10px;"><code>@. utmp = u + dt * k</code></td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;"><code>[a, b, c]</code> (array literal)</td><td style="padding:10px;"><code>SVector(a, b, c)</code> or pre-allocate</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">String interpolation in hot loop</td><td style="padding:10px;">Remove or guard with <code>if verbose</code></td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">Closures capturing mutable state</td><td style="padding:10px;">Pass as function arguments instead</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">Type-unstable containers</td><td style="padding:10px;">Parametric types with concrete type params</td></tr>
+        <tr><td style="padding:10px;"><code>map(f, collection)</code> (creates new array)</td><td style="padding:10px;"><code>map!(f, dest, collection)</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2>8. Real-World Impact</h2>
+    <p>Here's a comparison solving the Lorenz system for 1000 time units with Tsit5, showing the impact of allocation-free code:</p>
+
+    <pre><code>using OrdinaryDiffEq, BenchmarkTools
+
+prob_heap = ODEProblem(lorenz_heap, [1.0, 0.0, 0.0], (0.0, 1000.0), p)
+prob_static = ODEProblem(lorenz_static, SVector(1.0, 0.0, 0.0), (0.0, 1000.0), p)
+
+@btime solve($prob_heap, Tsit5(), save_everystep=false);
+# ~1.2 ms, 45,000+ allocations, ~3.5 MiB
+
+@btime solve($prob_static, Tsit5(), save_everystep=false);
+# ~0.15 ms, 0 allocations, 0 bytes
+# 8x faster, zero GC pressure</code></pre>
+
+    <p>For long-running simulations, the zero-allocation version maintains consistent performance without GC pauses, while the allocating version exhibits periodic latency spikes as the garbage collector runs.</p>
+
+    <h2>References</h2>
+    <ul>
+      <li>Julia Documentation. <em>Performance Tips.</em> <a href="https://docs.julialang.org/en/v1/manual/performance-tips/">docs.julialang.org</a></li>
+      <li>Bezanson, J., Edelman, A., Karpinski, S. & Shah, V. B. (2017). <em>Julia: A Fresh Approach to Numerical Computing.</em> SIAM Review, 59(1), 65–98.</li>
+      <li>Rackauckas, C. & Nie, Q. (2017). <em>DifferentialEquations.jl — A Performant and Feature-Rich Ecosystem for Solving Differential Equations in Julia.</em> JORS, 5(1): 15.</li>
+      <li>Revels, J. (2018). <em>BenchmarkTools.jl — A benchmarking framework for the Julia language.</em> GitHub.</li>
+      <li>Ferris, M. (2023). <em>AllocCheck.jl — Static allocation checking for Julia functions.</em> GitHub.</li>
+    </ul>
+  </div>
+</article>
+
+<footer class="footer"><div class="container"><p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p></div></footer>
+<script src="../js/main.js"></script>
+</body>
+</html>

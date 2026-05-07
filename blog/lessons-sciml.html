@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lessons from Contributing to SciML — Harsh Singh</title>
+  <meta name="description" content="What I learned from 16+ merged PRs across the SciML ecosystem — code review culture, numerical testing, and open-source collaboration.">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav class="navbar"><div class="container"><a href="../index.html" class="nav-logo">HS.</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle">☀️</button></li></ul><button class="mobile-toggle" id="mobile-toggle">☰</button></div></nav>
+<div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
+
+<article class="blog-post">
+  <div class="blog-post-header">
+    <a href="../index.html#blog" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">← Back to Blog</a>
+    <h1 style="margin-top:20px;">Lessons from Contributing to SciML</h1>
+    <div class="blog-post-meta">
+      <span>📅 May 7, 2026</span><span>🕐 9 min read</span><span class="blog-category">Open Source</span>
+    </div>
+  </div>
+
+  <div class="blog-post-content">
+    <p>Over the past several months, I've merged 16+ pull requests across three SciML repositories: <code>OrdinaryDiffEq.jl</code>, <code>SciMLBenchmarks.jl</code>, and <code>ODEInterfaceDiffEq.jl</code>. This post distills the lessons I've learned about contributing to a large-scale scientific open-source ecosystem — lessons about code, collaboration, and the culture of rigorous numerical software.</p>
+
+    <h2>1. Read More Code Than You Write</h2>
+    <p>My first months of SciML involvement were spent <em>reading</em>, not writing. Before my first PR, I had read through:</p>
+    <ul>
+      <li>The entire <code>perform_step!</code> implementation for at least 10 solvers</li>
+      <li>The cache allocation pattern and how <code>alg_cache</code> dispatch works</li>
+      <li>The integrator loop structure (<code>loopheader!</code>, <code>perform_step!</code>, <code>loopfooter!</code>)</li>
+      <li>The test suite structure and convergence testing methodology</li>
+      <li>Key papers referenced in the code comments</li>
+    </ul>
+    <p>This investment paid off enormously. By the time I wrote my first <code>perform_step!</code>, I understood not just <em>what</em> to write but <em>why</em> each pattern existed. Understanding the rationale behind design decisions — like why caches are parametric types, or why FSAL is handled as a separate code path — prevented me from making naive design choices that would have been rejected in review.</p>
+
+    <h2>2. Numerical Testing Is Different From Software Testing</h2>
+    <p>In most software, a test checks "does this function return the expected output?" In numerical computing, the answer is almost never exact. Instead, we test:</p>
+
+    <pre><code># Convergence order test: The GOLD STANDARD
+# Verify that the method achieves its theoretical order of accuracy
+for dt in [1/2^n for n in 2:8]
+    sol = solve(prob, MyMethod(), dt=dt, adaptive=false)
+    err = norm(sol.u[end] - exact_solution)
+    # Error should scale as O(dt^p) where p is the method order
+    push!(errors, err)
+end
+
+# Compute empirical convergence order
+for i in 2:length(errors)
+    order = log(errors[i-1] / errors[i]) / log(2)
+    @test order ≈ expected_order atol=0.3
+end</code></pre>
+
+    <p>Key numerical testing patterns I learned:</p>
+    <ul>
+      <li><strong>Convergence order verification:</strong> The method must achieve its theoretical order on smooth problems. This catches coefficient errors that wouldn't cause outright failures.</li>
+      <li><strong>Work-precision diagrams:</strong> Plot error vs. computational cost (time or function evaluations) to verify the method is efficient, not just correct.</li>
+      <li><strong>Stiff problem batteries:</strong> Run on standard stiff benchmarks (Van der Pol, HIRES, Robertson) to verify stability properties.</li>
+      <li><strong>Regression tests:</strong> Compare against known-good solutions to catch subtle regressions.</li>
+    </ul>
+
+    <h2>3. Performance Is a Correctness Requirement</h2>
+    <p>In SciML, a solver that produces correct results but is 2x slower than expected is considered <em>buggy</em>. Performance is not an optimization to do later — it's a design constraint from day one.</p>
+
+    <p>Every PR I submit includes:</p>
+    <ul>
+      <li><strong>Allocation check:</strong> <code>perform_step!</code> must be zero-allocation (verified via <code>AllocCheck.jl</code>)</li>
+      <li><strong>Benchmark comparison:</strong> Must not regress vs. existing methods on standard problems</li>
+      <li><strong>Type stability:</strong> <code>@code_warntype</code> must show no <code>Any</code> or <code>Union</code> types in the hot path</li>
+    </ul>
+
+    <p>I once submitted a PR where a seemingly harmless array creation in the cache initialization caused a 15% performance regression due to an extra GC cycle during long integrations. Chris caught it in review. Lesson learned: profile everything, assume nothing.</p>
+
+    <h2>4. The Art of Incremental PRs</h2>
+    <p>My biggest mistake early on was trying to do too much in a single PR. A PR that implements 16 new LSRK methods, adds their tests, and refactors the cache structure is <em>impossible</em> to review effectively.</p>
+    <p>What I learned to do instead:</p>
+    <ol>
+      <li><strong>PR 1:</strong> Add the tableau coefficients and type definitions</li>
+      <li><strong>PR 2:</strong> Implement <code>perform_step!</code> for the simplest variant</li>
+      <li><strong>PR 3:</strong> Add convergence tests</li>
+      <li><strong>PR 4:</strong> Extend to the full family of methods</li>
+      <li><strong>PR 5:</strong> Add benchmarks and documentation</li>
+    </ol>
+    <p>Each PR is small, focused, and independently verifiable. Reviewers can give detailed feedback on each step rather than rubber-stamping a massive diff.</p>
+
+    <h2>5. Benchmark Contributions Are Undervalued</h2>
+    <p>My 8 DAE benchmarks in <code>SciMLBenchmarks.jl</code> might seem less exciting than new solver implementations, but they're arguably more impactful. Benchmarks:</p>
+    <ul>
+      <li><strong>Define the standard:</strong> A benchmark establishes what "correct" looks like for a given problem class</li>
+      <li><strong>Enable comparison:</strong> Without benchmarks, claims of "faster" or "more accurate" are meaningless</li>
+      <li><strong>Catch regressions:</strong> Automated benchmark runs detect when a change breaks performance</li>
+      <li><strong>Guide development:</strong> Benchmarks reveal which problems need better solvers</li>
+    </ul>
+    <p>The DAE benchmarks I contributed — including the Car Axis Index-3 system, Andrews' Squeezing Mechanism, and the Slider-Crank Mechanism — are based on classical test problems from the mechanical engineering literature (documented in Hairer & Wanner, 1996). They provide reference solutions and work-precision diagrams that are essential for validating new DAE solvers.</p>
+
+    <h2>6. Communication Patterns That Work</h2>
+    <p>SciML maintainers are busy researchers. Effective communication is concise and context-rich:</p>
+    <ul>
+      <li><strong>Issue before PR:</strong> For non-trivial changes, open an issue first to discuss the approach. This prevents wasted effort on rejected designs.</li>
+      <li><strong>PR descriptions that tell a story:</strong> Not just "what changed" but "why" and "what was considered and rejected."</li>
+      <li><strong>Respond to reviews promptly:</strong> Stale PRs lose momentum. Address feedback within 24-48 hours.</li>
+      <li><strong>Ask specific questions:</strong> "Should I use SDIRK or ESDIRK structure for the implicit tableau?" is better than "How should I do this?"</li>
+    </ul>
+
+    <h2>7. Scientific Software Has Unique Challenges</h2>
+    <p>Contributing to SciML taught me that scientific software operates under constraints not found in typical web/app development:</p>
+    <ul>
+      <li><strong>Mathematical correctness:</strong> A typo in a coefficient isn't a cosmetic bug — it changes the convergence order and can produce silently wrong results</li>
+      <li><strong>Backward compatibility:</strong> Researchers have published papers using specific solver configurations. Changing default behavior can invalidate published results.</li>
+      <li><strong>Cross-type generality:</strong> Code must work with <code>Float64</code>, <code>BigFloat</code>, <code>Dual</code> numbers (autodiff), <code>Measurement</code> (uncertainty propagation), and custom types.</li>
+      <li><strong>Long-running correctness:</strong> A bug that only manifests after 10 million time steps is much harder to catch than one that fails immediately.</li>
+    </ul>
+
+    <h2>8. The Value of Persistence</h2>
+    <p>Not every PR is merged on the first try. My Rosenbrock23/32 refactoring PR (#3273) went through 4 rounds of review over several weeks, each time requiring significant changes. The MREEF multirate implementation (#3139) required deep discussions about the solver interface.</p>
+    <p>The key is to treat review feedback as a learning opportunity, not criticism. Every piece of feedback from experienced maintainers like Chris, Kanav, or Oscar is worth more than hours of independent study.</p>
+
+    <h2>Key Takeaways</h2>
+    <ol>
+      <li>Invest time in understanding existing code before writing new code</li>
+      <li>Numerical correctness requires specialized testing beyond unit tests</li>
+      <li>Performance is a design constraint, not an afterthought</li>
+      <li>Small, focused PRs get reviewed faster and merged more reliably</li>
+      <li>Benchmarks and tests are as valuable as new features</li>
+      <li>Communication matters as much as code quality</li>
+      <li>Scientific software has unique correctness requirements</li>
+      <li>Persistence through review cycles builds both code quality and developer skill</li>
+    </ol>
+
+    <h2>References</h2>
+    <ul>
+      <li>Hairer, E. & Wanner, G. (1996). <em>Solving Ordinary Differential Equations II: Stiff and Differential-Algebraic Problems.</em> Springer.</li>
+      <li>Rackauckas, C. & Nie, Q. (2017). <em>DifferentialEquations.jl – A Performant and Feature-Rich Ecosystem for Solving Differential Equations in Julia.</em> JORS, 5(1): 15.</li>
+      <li>Wilson, G., et al. (2014). <em>Best Practices for Scientific Computing.</em> PLoS Biology, 12(1), e1001745.</li>
+    </ul>
+  </div>
+</article>
+
+<footer class="footer"><div class="container"><p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p></div></footer>
+<script src="../js/main.js"></script>
+</body>
+</html>

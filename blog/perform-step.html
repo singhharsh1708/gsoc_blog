@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How perform_step! Works in OrdinaryDiffEq.jl — Harsh Singh</title>
+  <meta name="description" content="An architectural walkthrough of the solver stepping pipeline in OrdinaryDiffEq.jl — from cache allocation to error estimation.">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '\\(', right: '\\)', display: false}]});"></script>
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav class="navbar"><div class="container"><a href="../index.html" class="nav-logo">HS.</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle">☀️</button></li></ul><button class="mobile-toggle" id="mobile-toggle">☰</button></div></nav>
+<div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
+
+<article class="blog-post">
+  <div class="blog-post-header">
+    <a href="../index.html#blog" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">← Back to Blog</a>
+    <h1 style="margin-top:20px;">How <code>perform_step!</code> Works in OrdinaryDiffEq.jl</h1>
+    <div class="blog-post-meta">
+      <span>📅 May 7, 2026</span><span>🕐 16 min read</span><span class="blog-category">Open Source</span>
+    </div>
+  </div>
+
+  <div class="blog-post-content">
+    <p><code>perform_step!</code> is the heart of every ODE solver in the SciML ecosystem. It's the function that computes a single time step — the numerical kernel that transforms \(y_n\) into \(y_{n+1}\). Understanding its architecture is essential for anyone contributing new solvers or optimizing existing ones.</p>
+
+    <p>This post provides a comprehensive walkthrough of the <code>perform_step!</code> pipeline, from the outer integration loop down to the individual stage evaluations. I'll use the Tsit5 (Tsitouras' 5th-order) method as a running example, since it's the default solver for non-stiff problems and one of the most commonly used methods in the ecosystem.</p>
+
+    <h2>1. The Big Picture: Integration Loop</h2>
+    <p>When you call <code>solve(prob, Tsit5())</code>, the following chain of events occurs:</p>
+
+    <pre><code># Simplified integration pipeline
+solve(prob, alg)
+  └─ init(prob, alg)              # Create the integrator
+       └─ ODEIntegrator(...)      # Holds all state
+  └─ solve!(integrator)           # Run the main loop
+       └─ while !isempty(integrator.tstops)
+            loopheader!(integrator)     # Adaptivity, dt selection
+            perform_step!(integrator, cache)  # ← THE CORE
+            loopfooter!(integrator)     # Callbacks, saving, error control
+          end</code></pre>
+
+    <p>The integrator object is a mutable state container that holds:</p>
+    <ul>
+      <li><code>u</code> — the current solution vector</li>
+      <li><code>t</code> — the current time</li>
+      <li><code>dt</code> — the current step size</li>
+      <li><code>p</code> — problem parameters</li>
+      <li><code>f</code> — the ODE right-hand side function</li>
+      <li><code>cache</code> — algorithm-specific pre-allocated storage</li>
+      <li><code>opts</code> — tolerance settings, adaptive stepping parameters, etc.</li>
+    </ul>
+
+    <h2>2. The Cache System</h2>
+    <p>Every solver algorithm has an associated <strong>cache type</strong> that pre-allocates all working memory needed during a step. This is the foundation of zero-allocation performance. There are two variants:</p>
+
+    <pre><code># Out-of-place (OOP) cache — for small, immutable problems
+struct Tsit5ConstantCache{T, T2} <: OrdinaryDiffEqConstantCache
+    c2::T2; c3::T2; c4::T2; c5::T2; c6::T2  # Nodes
+    a21::T; a31::T; a32::T                     # Butcher coefficients
+    a41::T; a42::T; a43::T
+    # ... all coefficients stored as scalars
+    # No pre-allocated arrays — stages are immutable return values
+end
+
+# In-place (IIP) cache — for large, mutable problems
+struct Tsit5Cache{uType, rateType, TabType} <: OrdinaryDiffEqMutableCache
+    u::uType; uprev::uType        # Solution arrays
+    k1::rateType; k2::rateType    # Stage derivative arrays
+    k3::rateType; k4::rateType
+    k5::rateType; k6::rateType; k7::rateType
+    utilde::uType                  # Error estimation workspace
+    atmp::uType                    # Absolute tolerance temp
+    tab::TabType                   # Tableau coefficients
+end</code></pre>
+
+    <p>The cache distinction is crucial for performance:</p>
+    <ul>
+      <li><strong>OOP (ConstantCache):</strong> Used when <code>u</code> is small (e.g., <code>SVector</code>) or immutable. Each <code>f(u, p, t)</code> call returns a new object. No pre-allocated arrays. The compiler can stack-allocate everything.</li>
+      <li><strong>IIP (MutableCache):</strong> Used when <code>u</code> is a large mutable array. All stage vectors are pre-allocated in the cache. <code>f(du, u, p, t)</code> writes into <code>du</code> in-place. This avoids heap allocations in the hot loop.</li>
+    </ul>
+
+    <h2>3. Inside perform_step! — The Tsit5 Example</h2>
+    <p>Tsit5 is a 7-stage, 5th-order method with a 4th-order embedded error estimator (for adaptive step size control) and the FSAL property. The in-place <code>perform_step!</code> looks like this (simplified):</p>
+
+    <pre><code>function perform_step!(integrator, cache::Tsit5Cache, repeat_step = false)
+    # 1. UNPACK — Extract everything from the integrator and cache
+    @unpack t, dt, uprev, u, p, f = integrator
+    @unpack k1, k2, k3, k4, k5, k6, k7, utilde, atmp = cache
+    @unpack c2, c3, c4, c5, c6,
+            a21, a31, a32, a41, a42, a43,
+            a51, a52, a53, a54,
+            a61, a62, a63, a64, a65,
+            a71, a72, a73, a74, a75, a76,
+            btilde1, btilde2, btilde3, btilde4,
+            btilde5, btilde6, btilde7 = cache.tab
+
+    # 2. FSAL — k1 was already computed at the end of the previous step
+    # (or during initialization for the first step)
+
+    # 3. STAGE EVALUATIONS — Compute stages k2 through k7
+    # Stage 2: Y2 = u + dt * a21 * k1
+    @. u = uprev + dt * a21 * k1
+    f(k2, u, p, t + c2 * dt)
+
+    # Stage 3: Y3 = u + dt * (a31*k1 + a32*k2)
+    @. u = uprev + dt * (a31 * k1 + a32 * k2)
+    f(k3, u, p, t + c3 * dt)
+
+    # Stage 4: Y4 = u + dt * (a41*k1 + a42*k2 + a43*k3)
+    @. u = uprev + dt * (a41 * k1 + a42 * k2 + a43 * k3)
+    f(k4, u, p, t + c4 * dt)
+
+    # ... Stage 5, 6 similarly ...
+
+    # Stage 7 (FSAL): This will be k1 of the NEXT step
+    @. u = uprev + dt * (a71*k1 + a72*k2 + a73*k3 +
+                         a74*k4 + a75*k5 + a76*k6)
+    f(k7, u, p, t + dt)
+    # u now holds y_{n+1} (the a7i coefficients = bi weights for Tsit5)
+
+    # 4. ERROR ESTIMATION — Difference between 5th and 4th order solutions
+    @. utilde = dt * (btilde1*k1 + btilde2*k2 + btilde3*k3 +
+                      btilde4*k4 + btilde5*k5 + btilde6*k6 +
+                      btilde7*k7)
+
+    # 5. PACK — Write results back to the integrator
+    integrator.EEst = integrator.opts.internalnorm(utilde, t)
+    # k7 becomes k1 of the next step (FSAL)
+    integrator.fsallast = k7
+end</code></pre>
+
+    <h2>4. The FSAL Optimization</h2>
+    <p>FSAL (First Same As Last) is a critical optimization used by many modern RK methods. The idea: the last stage derivative \(k_s\) of step \(n\) is exactly the first stage derivative \(k_1\) of step \(n+1\), because both are evaluated at the same point \((t_{n+1}, y_{n+1})\).</p>
+
+    <p>This saves one function evaluation per step — for Tsit5, that means 6 evaluations per step instead of 7 (a ~14% reduction in the dominant cost). The cache manages this by storing \(k_s\) in the <code>fsallast</code> field and copying it to \(k_1\) at the start of the next step.</p>
+
+    <h2>5. Adaptive Step Size Control</h2>
+    <p>After <code>perform_step!</code> computes both the solution \(y_{n+1}\) and the error estimate, the <code>loopfooter!</code> function uses the error estimate to decide whether to accept or reject the step and how to adjust \(dt\).</p>
+
+    <p>The error is typically controlled using the formula:</p>
+    <p>$$\text{EEst} = \left\| \frac{y_{n+1}^{(p)} - y_{n+1}^{(p-1)}}{\text{abstol} + \text{reltol} \cdot |y_{n+1}|} \right\|$$</p>
+
+    <p>If EEst ≤ 1, the step is accepted. If EEst > 1, the step is rejected and retried with a smaller \(dt\). The new step size is computed using the PI controller:</p>
+    <p>$$dt_{\text{new}} = dt \cdot \min\left(q_{\max}, \max\left(q_{\min}, q \cdot \text{EEst}^{-1/(p+1)}\right)\right)$$</p>
+    <p>where \(q\) is a safety factor (typically 0.9) and \(p\) is the method order.</p>
+
+    <h2>6. The Dispatch Mechanism</h2>
+    <p>Julia's multiple dispatch is what makes the entire architecture possible. When you call <code>solve(prob, Tsit5())</code>:</p>
+    <ol>
+      <li>The <code>alg_cache</code> function dispatches on the algorithm type to create the appropriate cache</li>
+      <li>The <code>perform_step!</code> function dispatches on the cache type to run the correct numerical method</li>
+      <li>The compiler specializes the entire call chain for the specific types, eliminating all dynamic dispatch overhead</li>
+    </ol>
+
+    <pre><code># The dispatch chain
+alg_cache(alg::Tsit5, u, ...) → Tsit5Cache(...)
+perform_step!(integrator, cache::Tsit5Cache) → specialized code
+
+# At compile time, Julia generates optimized machine code
+# specifically for Tsit5Cache, with all coefficient accesses
+# resolved to constants and all loops unrolled.</code></pre>
+
+    <h2>7. Why This Matters for the Refactoring</h2>
+    <p>Understanding the <code>perform_step!</code> pipeline reveals exactly what the generic tableau architecture must replicate:</p>
+    <ul>
+      <li>The cache must pre-allocate the correct number of stage vectors (determined by the tableau)</li>
+      <li>The stage loop must handle both FSAL and non-FSAL methods</li>
+      <li>The error estimation must use the embedded coefficients from the tableau</li>
+      <li>The type parametrization must enable the same level of compiler specialization</li>
+    </ul>
+
+    <p>The generic version doesn't change <em>what</em> <code>perform_step!</code> does — it changes <em>how many times</em> it's written. Instead of N separate implementations for N methods, we have one implementation parametrized by a tableau.</p>
+
+    <h2>References</h2>
+    <ul>
+      <li>Rackauckas, C. & Nie, Q. (2017). <em>DifferentialEquations.jl – A Performant and Feature-Rich Ecosystem for Solving Differential Equations in Julia.</em> JORS, 5(1): 15.</li>
+      <li>Tsitouras, C. (2011). <em>Runge–Kutta pairs of order 5(4) satisfying only the first column simplifying assumption.</em> Computers & Mathematics with Applications, 62(2), 770–775.</li>
+      <li>Hairer, E., Nørsett, S. P. & Wanner, G. (1993). <em>Solving Ordinary Differential Equations I.</em> Springer.</li>
+      <li>Dormand, J. R. & Prince, P. J. (1980). <em>A family of embedded Runge-Kutta formulae.</em> Journal of Computational and Applied Mathematics, 6(1), 19–26.</li>
+      <li>SciML Developer Documentation. <em>Developing a New Solver Algorithm.</em> <a href="https://docs.sciml.ai/DiffEqDevDocs/stable/">docs.sciml.ai</a></li>
+    </ul>
+  </div>
+</article>
+
+<footer class="footer"><div class="container"><p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p></div></footer>
+<script src="../js/main.js"></script>
+</body>
+</html>

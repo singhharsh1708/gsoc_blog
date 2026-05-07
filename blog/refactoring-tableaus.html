@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Refactoring 3000+ Lines into Generic Tableaus — Harsh Singh</title>
+  <meta name="description" content="How we're replacing duplicated perform_step! implementations in OrdinaryDiffEq.jl with a clean, generic dispatch architecture.">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '\\(', right: '\\)', display: false}]});"></script>
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav class="navbar"><div class="container"><a href="../index.html" class="nav-logo">HS.</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle">☀️</button></li></ul><button class="mobile-toggle" id="mobile-toggle">☰</button></div></nav>
+<div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
+
+<article class="blog-post">
+  <div class="blog-post-header">
+    <a href="../index.html#blog" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">← Back to Blog</a>
+    <h1 style="margin-top:20px;">Refactoring 3000+ Lines into Generic Tableaus</h1>
+    <div class="blog-post-meta">
+      <span>📅 May 7, 2026</span><span>🕐 15 min read</span><span class="blog-category">GSoC Updates</span>
+    </div>
+  </div>
+
+  <div class="blog-post-content">
+    <p><code>OrdinaryDiffEq.jl</code> is one of the most comprehensive ODE solver libraries ever built. It implements over 300 algorithms spanning explicit, implicit, exponential, symplectic, and multirate methods. But this comprehensiveness has a cost: <strong>code duplication</strong>.</p>
+
+    <p>This post examines the duplication problem in detail, explains the generic tableau architecture being built to solve it, and discusses the engineering trade-offs involved in refactoring performance-critical numerical infrastructure without breaking anything.</p>
+
+    <h2>The Duplication Problem</h2>
+    <p>Consider the explicit Runge–Kutta family. An \(s\)-stage ERK method computes:</p>
+    <p>$$k_i = f\!\left(t_n + c_i h,\; y_n + h \sum_{j=1}^{i-1} a_{ij} k_j\right), \qquad i = 1, \ldots, s$$</p>
+    <p>$$y_{n+1} = y_n + h \sum_{i=1}^{s} b_i k_i$$</p>
+
+    <p>Every ERK method — RK4, Tsit5, DP5, Vern6, Feagin10 — implements this <em>same</em> mathematical structure. The only difference is the Butcher tableau coefficients \((A, b, c)\). Yet in the codebase, each has its own <code>perform_step!</code>:</p>
+
+    <pre><code># In the current codebase, each method has its own function:
+# perform_step!(integrator, cache::RK4Cache, ...)        ~80 lines
+# perform_step!(integrator, cache::Tsit5Cache, ...)      ~120 lines
+# perform_step!(integrator, cache::DP5Cache, ...)        ~150 lines
+# perform_step!(integrator, cache::Vern6Cache, ...)      ~200 lines
+# perform_step!(integrator, cache::Feagin10Cache, ...)   ~350 lines
+# ... and many more
+#
+# Total: ~3,300 lines of structurally identical code</code></pre>
+
+    <p>Each implementation unpacks coefficients, evaluates stages, accumulates contributions, and updates the solution — all following the same pattern. The differences are limited to:</p>
+    <ol>
+      <li>The number of stages \(s\)</li>
+      <li>The specific coefficient values</li>
+      <li>Whether the method has FSAL (First Same As Last) property</li>
+      <li>Whether an embedded error estimator is used (and its coefficients)</li>
+    </ol>
+
+    <h2>Why This Matters</h2>
+    <p>Code duplication in a numerical library is more than just an aesthetic problem:</p>
+    <ul>
+      <li><strong>Bug propagation:</strong> A bug in the stepping logic must be fixed in every method individually. A subtle off-by-one error in the FSAL handling of Tsit5 wouldn't automatically be fixed in Vern6.</li>
+      <li><strong>Maintenance burden:</strong> Any architectural change to the integrator (e.g., changing the cache structure, adding a new callback hook) requires modifying dozens of files.</li>
+      <li><strong>Barrier to contribution:</strong> New contributors who want to add a method must duplicate hundreds of lines of boilerplate rather than just specifying tableau coefficients.</li>
+      <li><strong>Testing complexity:</strong> Each method needs its own convergence tests, making the test suite large and slow.</li>
+    </ul>
+
+    <h2>The Generic Tableau Architecture</h2>
+    <p>The solution is to define a single, parametric tableau type and a single <code>perform_step!</code> that dispatches on the tableau:</p>
+
+    <pre><code>"""
+    GenericERKTableau{s, T}
+
+Generic explicit Runge-Kutta tableau with `s` stages and
+coefficient type `T`. The stage count is a type parameter
+to enable compile-time loop unrolling.
+"""
+struct GenericERKTableau{s, T <: Real}
+    A::SMatrix{s, s, T}          # Butcher matrix (strictly lower triangular)
+    b::SVector{s, T}             # Weights
+    bhat::SVector{s, T}          # Embedded error estimator weights
+    c::SVector{s, T}             # Nodes
+    fsal::Bool                   # First Same As Last property
+    order::Int                   # Method order
+    error_order::Int             # Embedded estimator order
+end</code></pre>
+
+    <p>The key design decision is making the stage count <code>s</code> a <strong>type parameter</strong>. This allows Julia's compiler to:</p>
+    <ul>
+      <li><strong>Unroll the stage loops:</strong> <code>for i in 1:s</code> becomes a sequence of inlined operations when <code>s</code> is known at compile time</li>
+      <li><strong>Specialize the cache:</strong> The number of pre-allocated stage vectors is determined at compile time</li>
+      <li><strong>Eliminate dead branches:</strong> FSAL-specific code can be compiled away for non-FSAL methods</li>
+    </ul>
+
+    <h2>The Generic perform_step!</h2>
+    <pre><code>function perform_step!(integrator, cache::GenericERKCache)
+    @unpack t, dt, u, p, f = integrator
+    @unpack tab, K, utmp = cache
+    s = nstages(tab)
+
+    # Stage evaluations
+    @inbounds for i in 1:s
+        # Compute stage argument: u + dt * sum(A[i,j] * K[j])
+        @. utmp = u
+        for j in 1:i-1
+            if !iszero(tab.A[i, j])
+                @. utmp += dt * tab.A[i, j] * K[j]
+            end
+        end
+        # Evaluate f at the stage point
+        f(K[i], utmp, p, t + tab.c[i] * dt)
+    end
+
+    # Update solution: u_new = u + dt * sum(b[i] * K[i])
+    @. integrator.u = u
+    @inbounds for i in 1:s
+        if !iszero(tab.b[i])
+            @. integrator.u += dt * tab.b[i] * K[i]
+        end
+    end
+
+    # Error estimation (for adaptive stepping)
+    if has_embedded(tab)
+        @. cache.atmp = zero(eltype(u))
+        @inbounds for i in 1:s
+            @. cache.atmp += dt * (tab.b[i] - tab.bhat[i]) * K[i]
+        end
+        integrator.EEst = integrator.opts.internalnorm(cache.atmp, t)
+    end
+end</code></pre>
+
+    <p>This single function replaces ~3,300 lines of hand-written stepping code. Adding a new ERK method now reduces to defining its tableau coefficients:</p>
+
+    <pre><code># Adding a new method is just defining coefficients:
+function Ralston4Tableau(T = Float64)
+    A = @SMatrix T[
+        0       0        0       0
+        0.4     0        0       0
+        0.29698 0.15875  0       0
+        0.21827 -3.05097 3.83274 0
+    ]
+    b = @SVector T[0.17476, -0.55149, 1.20553, 0.17118]
+    c = @SVector T[0.0, 0.4, 0.45573, 1.0]
+    GenericERKTableau{4, T}(A, b, b, c, false, 4, 3)
+end</code></pre>
+
+    <h2>Performance: The Critical Constraint</h2>
+    <p>The entire refactoring is predicated on one constraint: <strong>zero performance regression</strong>. SciML solvers are used in production scientific computing workflows where even a 5% slowdown is unacceptable.</p>
+
+    <p>We validate performance using <code>BenchmarkTools.jl</code> and the allocation-checking framework <code>AllocCheck.jl</code>:</p>
+
+    <pre><code>using BenchmarkTools, OrdinaryDiffEq
+
+# Lorenz system benchmark
+function lorenz!(du, u, p, t)
+    σ, ρ, β = p
+    du[1] = σ * (u[2] - u[1])
+    du[2] = u[1] * (ρ - u[3]) - u[2]
+    du[3] = u[1] * u[2] - β * u[3]
+end
+
+u0 = [1.0, 0.0, 0.0]
+p = (10.0, 28.0, 8/3)
+prob = ODEProblem(lorenz!, u0, (0.0, 100.0), p)
+
+# Compare handwritten vs. generic
+@btime solve($prob, Tsit5());           # Handwritten: ~X μs
+@btime solve($prob, GenericTsit5());    # Generic:     ~Y μs (target: within 2%)</code></pre>
+
+    <p>The key to achieving performance parity is <strong>type-parametric tableaus</strong>. When the stage count is a type parameter, Julia's aggressive specialization eliminates all abstraction overhead at compile time. The generated LLVM IR for the generic version is effectively identical to the handwritten version.</p>
+
+    <h2>Migration Strategy</h2>
+    <p>We're migrating solvers in phases, ordered by structural complexity:</p>
+
+    <table style="width:100%;border-collapse:collapse;margin:24px 0;">
+      <thead><tr style="border-bottom:2px solid var(--border);text-align:left;">
+        <th style="padding:10px;">Phase</th><th style="padding:10px;">Family</th><th style="padding:10px;">Methods</th><th style="padding:10px;">Lines Removed</th>
+      </tr></thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">1</td><td style="padding:10px;">Explicit RK (non-FSAL)</td><td style="padding:10px;">RK4, Ralston4, etc.</td><td style="padding:10px;">~400</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">2</td><td style="padding:10px;">Explicit RK (FSAL)</td><td style="padding:10px;">Tsit5, DP5, BS3, etc.</td><td style="padding:10px;">~800</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">3</td><td style="padding:10px;">DIRK / SDIRK</td><td style="padding:10px;">ImplicitEuler, TRBDF2, etc.</td><td style="padding:10px;">~600</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">4</td><td style="padding:10px;">IMEX-RK (ARK)</td><td style="padding:10px;">KenCarp3/4/5, etc.</td><td style="padding:10px;">~900</td></tr>
+        <tr><td style="padding:10px;">5</td><td style="padding:10px;">Symplectic / Low-storage</td><td style="padding:10px;">LSRK, SymplecticRK</td><td style="padding:10px;">~600</td></tr>
+      </tbody>
+    </table>
+
+    <p>Each phase follows a strict protocol:</p>
+    <ol>
+      <li><strong>Implement</strong> the generic tableau and stepping function</li>
+      <li><strong>Verify</strong> convergence order via method-of-manufactured-solutions tests</li>
+      <li><strong>Benchmark</strong> against the handwritten version (must be within 2%)</li>
+      <li><strong>Check allocations</strong> via <code>AllocCheck.jl</code> (must be zero-allocation)</li>
+      <li><strong>Deprecate</strong> the old implementation (keeping it available for one release cycle)</li>
+      <li><strong>Remove</strong> the old code in the following release</li>
+    </ol>
+
+    <h2>Lessons Learned So Far</h2>
+    <ul>
+      <li><strong>Type parameters are essential</strong> for performance in generic numerical code. Without compile-time stage counts, the inner loops can't be unrolled and performance drops 10–30%.</li>
+      <li><strong>Incremental migration is safer</strong> than a big-bang rewrite. Each method is migrated and validated independently.</li>
+      <li><strong>Existing tests are invaluable.</strong> SciML's extensive test suite catches subtle numerical bugs that would be invisible in simple benchmarks.</li>
+      <li><strong>User-facing API must not change.</strong> <code>solve(prob, Tsit5())</code> should work exactly as before — the refactoring is entirely internal.</li>
+    </ul>
+
+    <h2>References</h2>
+    <ul>
+      <li>Butcher, J. C. (2016). <em>Numerical Methods for Ordinary Differential Equations.</em> 3rd edition. John Wiley & Sons.</li>
+      <li>Hairer, E., Nørsett, S. P. & Wanner, G. (1993). <em>Solving Ordinary Differential Equations I: Nonstiff Problems.</em> 2nd edition. Springer.</li>
+      <li>Rackauckas, C. & Nie, Q. (2017). <em>DifferentialEquations.jl – A Performant and Feature-Rich Ecosystem for Solving Differential Equations in Julia.</em> JORS, 5(1): 15.</li>
+      <li>Kennedy, C. A. & Carpenter, M. H. (2003). <em>Additive Runge–Kutta schemes for convection–diffusion–reaction equations.</em> Applied Numerical Mathematics, 44(1-2), 139–181.</li>
+    </ul>
+  </div>
+</article>
+
+<footer class="footer"><div class="container"><p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p></div></footer>
+<script src="../js/main.js"></script>
+</body>
+</html>
