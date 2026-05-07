@@ -44,6 +44,3 @@ Pure static site — no build step, no frameworks.
 
 Static site — just push to GitHub and enable Pages from `main` branch. No build step needed.
 
-## License
-
-MIT
