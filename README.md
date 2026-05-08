@@ -2,7 +2,7 @@
 
 Personal portfolio and technical blog for **Google Summer of Code 2026** under **SciML (NumFOCUS)**.
 
-🔗 **Live:** [singhharsh1708.github.io/Harsh_gsoc_blog](https://singhharsh1708.github.io/Harsh_gsoc_blog/)
+🔗 **Live:** [singhharsh1708.github.io/Harsh_gsoc_blog](https://singhharsh1708.github.io/gsoc_blog/)
 
 ## Tech Stack
 
