@@ -108,6 +108,7 @@ html {
   scroll-behavior: smooth;
   scroll-padding-top: calc(var(--nav-h) + 16px);
   -webkit-text-size-adjust: 100%;
+  overflow-x: clip;
 }
 
 body {
@@ -302,6 +303,7 @@ section + section { border-top: 1px solid var(--border); }
   position: relative;
 }
 
+.hero > .container { width: 100%; }
 .hero-content { max-width: 760px; }
 
 .hero-badge {
@@ -1524,6 +1526,9 @@ pre:hover .copy-btn,
   .about-cards { grid-template-columns: 1fr 1fr; }
   .section-header { margin-bottom: 40px; }
   .project-meta { gap: 12px 20px; }
+  .contrib-tabs { display: flex; flex-wrap: wrap; max-width: 100%; }
+  .contrib-tab { flex: 1 1 auto; text-align: center; }
+  .mentors-list strong { width: 100%; margin-right: 0; margin-bottom: 4px; }
 }
 @media (max-width: 480px) {
   .hero-ctas .btn { flex: 1 1 auto; justify-content: center; }
