@@ -1,46 +1,23 @@
 # Harsh Singh — GSoC 2026 @ SciML
 
-Personal portfolio and technical blog for **Google Summer of Code 2026** under **SciML (NumFOCUS)**.
+🔗 **Live Portfolio & Devlog:** [singhharsh1708.github.io/gsoc_blog](https://singhharsh1708.github.io/gsoc_blog/)
 
-🔗 **Live:** [singhharsh1708.github.io/Harsh_gsoc_blog](https://singhharsh1708.github.io/gsoc_blog/)
+## Google Summer of Code 2026
 
-## Tech Stack
+**Project:** Native Julia ODE, SDE, DAE, DDE, and PDE Solvers  
+**Organization:** SciML (NumFOCUS)  
+**Mentors:** Chris Rackauckas, Kanav Gupta, Utkarsh, Oscar Smith  
 
-Pure static site — no build step, no frameworks.
+### Overview
 
-- **HTML** — semantic markup
-- **CSS** — vanilla, dark-first design system
-- **JavaScript** — theme toggle, animations, filters
-- **KaTeX** — LaTeX math rendering (CDN)
+`OrdinaryDiffEq.jl` is one of the most comprehensive ODE solver libraries available, but its growth led to substantial code duplication. Most solver families (such as KenCarp, Kvaerno, and Verner) had their own bespoke `perform_step!` implementations. 
 
-## Project Structure
+This project solves that architectural bottleneck by introducing a generic `IMEXTableau{Texplicit, Timplicit}` struct and expanding the generic tableau refactor across all 16 Runge-Kutta solver families. This transition removes roughly ~3,300 lines of duplicated code, guarantees zero-allocation performance, and provides a streamlined interface for introducing novel methods in the future. 
 
-```
-├── index.html              # Main page (all sections)
-├── css/style.css           # Design system
-├── js/main.js              # Theme, nav, animations, filters
-└── blog/
-    ├── gsoc-selection.html
-    ├── imex-runge-kutta.html
-    ├── refactoring-tableaus.html
-    ├── perform-step.html
-    ├── zero-allocation-julia.html
-    ├── multirate-solvers.html
-    └── lessons-sciml.html
-```
+### Key Deliverables
 
-## Features
+- **IMEX Tableau Migration:** Replacing bespoke steppers for the ARS, ESDIRK, KenCarp, and Kvaerno families with a single, highly-optimized generic dispatch.
+- **Multirate Solvers:** Implementing full, generic solvers for systems where components evolve at vastly different timescales (MREIL, MIS, MRGARK).
+- **RK Family Generalization:** Extending the generic stepper framework to encompass LowStorageRK, Verner, and HighOrderRK architectures.
 
-- Dark/light theme toggle
-- 7 complete technical blog posts with academic references
-- KaTeX math rendering
-- GitHub contribution graph
-- Category-filtered blog section
-- Tabbed PR contribution cards
-- Scroll animations
-- Fully responsive
-
-## Deploy
-
-Static site — just push to GitHub and enable Pages from `main` branch. No build step needed.
-
+All changes strictly preserve mathematical invariants, bounds checking, and high-performance zero-allocation guarantees required for SciML workloads.
