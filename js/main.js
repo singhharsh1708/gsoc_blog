@@ -1,79 +1,82 @@
-// ===== Theme Toggle =====
+// ===== Theme =====
 const themeToggle = document.getElementById('theme-toggle');
-const root = document.documentElement;
+const themeIcon   = document.getElementById('theme-icon');
+const root        = document.documentElement;
+
+const ICON_SUN  = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
+const ICON_MOON = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
 
 function setTheme(theme) {
   root.setAttribute('data-theme', theme);
   localStorage.setItem('theme', theme);
-  themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+  if (themeIcon) themeIcon.innerHTML = theme === 'dark' ? ICON_SUN : ICON_MOON;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', theme === 'dark' ? '#0b0d12' : '#fafbfc');
 }
 
-const saved = localStorage.getItem('theme') || 'dark';
-setTheme(saved);
+setTheme(localStorage.getItem('theme') || 'dark');
 
-themeToggle.addEventListener('click', () => {
-  const current = root.getAttribute('data-theme');
-  setTheme(current === 'dark' ? 'light' : 'dark');
-});
+if (themeToggle) {
+  themeToggle.addEventListener('click', () => {
+    setTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+}
 
 // ===== Mobile Nav =====
 const mobileToggle = document.getElementById('mobile-toggle');
-const mobileNav = document.getElementById('mobile-nav');
+const mobileNav    = document.getElementById('mobile-nav');
 
-if (mobileToggle) {
+if (mobileToggle && mobileNav) {
+  const closeNav = () => {
+    mobileNav.classList.remove('open');
+    document.body.style.overflow = '';
+  };
   mobileToggle.addEventListener('click', () => {
-    mobileNav.classList.toggle('open');
-    mobileToggle.textContent = mobileNav.classList.contains('open') ? '✕' : '☰';
+    const open = mobileNav.classList.toggle('open');
+    document.body.style.overflow = open ? 'hidden' : '';
   });
-  mobileNav.querySelectorAll('a').forEach(a => {
-    a.addEventListener('click', () => {
-      mobileNav.classList.remove('open');
-      mobileToggle.textContent = '☰';
-    });
-  });
+  mobileNav.querySelectorAll('a').forEach(a => a.addEventListener('click', closeNav));
 }
 
-// ===== Scroll Animations =====
+// ===== Scroll-in fades =====
 const fadeEls = document.querySelectorAll('.fade-in');
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach((entry, i) => {
+const fadeObs = new IntersectionObserver((entries) => {
+  entries.forEach((entry) => {
     if (entry.isIntersecting) {
-      setTimeout(() => entry.target.classList.add('visible'), i * 80);
-      observer.unobserve(entry.target);
+      entry.target.classList.add('visible');
+      fadeObs.unobserve(entry.target);
     }
   });
-}, { threshold: 0.1 });
-fadeEls.forEach(el => observer.observe(el));
+}, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+fadeEls.forEach(el => fadeObs.observe(el));
 
-// ===== Active Nav on Scroll =====
+// ===== Navbar shadow + active link =====
+const navbar = document.getElementById('navbar');
 const sections = document.querySelectorAll('section[id]');
-window.addEventListener('scroll', () => {
-  const scrollY = window.scrollY + 100;
+const navLinks = document.querySelectorAll('.nav-links a');
+
+function onScroll() {
+  if (navbar) navbar.classList.toggle('scrolled', window.scrollY > 8);
+
+  const y = window.scrollY + 120;
+  let active = '';
   sections.forEach(sec => {
-    const top = sec.offsetTop;
-    const height = sec.offsetHeight;
-    const id = sec.getAttribute('id');
-    const link = document.querySelector(`.nav-links a[href="#${id}"]`);
-    if (link) {
-      if (scrollY >= top && scrollY < top + height) {
-        link.style.color = 'var(--accent)';
-      } else {
-        link.style.color = '';
-      }
+    if (y >= sec.offsetTop && y < sec.offsetTop + sec.offsetHeight) {
+      active = sec.id;
     }
   });
-});
+  navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === `#${active}`));
+}
+window.addEventListener('scroll', onScroll, { passive: true });
+onScroll();
 
 // ===== Contribution Tabs =====
-const contribTabs = document.querySelectorAll('.contrib-tab');
-const contribPanels = document.querySelectorAll('.contrib-panel');
-
-contribTabs.forEach(tab => {
+document.querySelectorAll('.contrib-tab').forEach(tab => {
   tab.addEventListener('click', () => {
-    contribTabs.forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.contrib-tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     const target = tab.dataset.tab;
-    contribPanels.forEach(p => {
+    document.querySelectorAll('.contrib-panel').forEach(p => {
       p.style.display = p.dataset.panel === target ? 'grid' : 'none';
     });
   });
@@ -81,43 +84,46 @@ contribTabs.forEach(tab => {
 
 // ===== Blog Filters =====
 const blogFilters = document.querySelectorAll('.blog-filter');
-const blogCards = document.querySelectorAll('.blog-card');
-
+const blogCards   = document.querySelectorAll('.blog-card');
 blogFilters.forEach(filter => {
   filter.addEventListener('click', () => {
     blogFilters.forEach(f => f.classList.remove('active'));
     filter.classList.add('active');
     const cat = filter.dataset.cat;
     blogCards.forEach(card => {
-      if (cat === 'all' || card.dataset.cat === cat) {
-        card.style.display = 'block';
-      } else {
-        card.style.display = 'none';
-      }
+      card.style.display = (cat === 'all' || card.dataset.cat === cat) ? '' : 'none';
     });
   });
 });
 
-// ===== GitHub Contribution Graph =====
-function renderGraph() {
+// ===== Activity Graph (deterministic; weighted to recent activity) =====
+(function renderGraph() {
   const grid = document.getElementById('github-graph');
   if (!grid) return;
-  // Simulated contribution data
-  const levels = [0, 0, 0, 1, 0, 0, 2, 0, 1, 0, 0, 3, 0, 0, 1, 2, 0, 0, 0, 1, 0, 4, 0, 1, 0, 0, 2, 3];
-  for (let i = 0; i < 52 * 7; i++) {
-    const cell = document.createElement('div');
-    cell.className = 'graph-cell';
-    const rand = Math.random();
-    if (rand > 0.85) cell.classList.add('l4');
-    else if (rand > 0.7) cell.classList.add('l3');
-    else if (rand > 0.55) cell.classList.add('l2');
-    else if (rand > 0.4) cell.classList.add('l1');
-    grid.appendChild(cell);
+  // seeded pseudo-random so the pattern is stable across loads
+  let seed = 1337;
+  const rand = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  const WEEKS = 52, DAYS = 7;
+  for (let w = 0; w < WEEKS; w++) {
+    // ramp activity up in recent weeks
+    const recency = w / WEEKS; // 0..1
+    for (let d = 0; d < DAYS; d++) {
+      const cell = document.createElement('div');
+      cell.className = 'graph-cell';
+      const r = rand() + recency * 0.4;
+      if      (r > 1.10) cell.classList.add('l4');
+      else if (r > 0.85) cell.classList.add('l3');
+      else if (r > 0.60) cell.classList.add('l2');
+      else if (r > 0.40) cell.classList.add('l1');
+      grid.appendChild(cell);
+    }
   }
-}
-renderGraph();
+})();
 
-// ===== Copy Code Button =====
+// ===== Copy code buttons (blog posts) =====
 document.querySelectorAll('pre').forEach(pre => {
   const btn = document.createElement('button');
   btn.className = 'copy-btn';
@@ -125,62 +131,54 @@ document.querySelectorAll('pre').forEach(pre => {
   btn.addEventListener('click', () => {
     const code = pre.querySelector('code')?.textContent || pre.textContent;
     navigator.clipboard.writeText(code).then(() => {
-      btn.textContent = 'Copied!';
-      setTimeout(() => btn.textContent = 'Copy', 2000);
+      btn.textContent = 'Copied';
+      setTimeout(() => btn.textContent = 'Copy', 1800);
     });
   });
-  pre.style.position = 'relative';
   pre.appendChild(btn);
 });
 
-// ===== Smooth Navbar Shadow =====
-window.addEventListener('scroll', () => {
-  const nav = document.querySelector('.navbar');
-  if (window.scrollY > 10) {
-    nav.style.boxShadow = '0 4px 20px rgba(0,0,0,0.2)';
-  } else {
-    nav.style.boxShadow = 'none';
+// ===== Hero typing effect =====
+(function heroTyping() {
+  const el = document.getElementById('hero-typing');
+  if (!el) return;
+  const text = el.dataset.text || '';
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = text;
+    return;
   }
-});
-
-// ===== Typing Effect for Hero =====
-function typeWriter(el, text, speed = 50) {
-  let i = 0;
   el.textContent = '';
-  function type() {
+  const caret = document.createElement('span');
+  caret.className = 'caret';
+  el.appendChild(caret);
+
+  let i = 0;
+  const tick = () => {
     if (i < text.length) {
-      el.textContent += text.charAt(i);
+      caret.insertAdjacentText('beforebegin', text.charAt(i));
       i++;
-      setTimeout(type, speed);
+      setTimeout(tick, 38);
     }
-  }
-  type();
-}
+  };
+  setTimeout(tick, 350);
+})();
 
-const heroTyping = document.getElementById('hero-typing');
-if (heroTyping) {
-  const text = heroTyping.dataset.text;
-  typeWriter(heroTyping, text, 40);
-}
-
-// ===== Syntax Highlighting (Tokyo Night) =====
+// ===== Syntax highlighting on blog post pages =====
 if (document.querySelector('pre code')) {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css';
+  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css';
   document.head.appendChild(link);
-  
+
   const script = document.createElement('script');
   script.src = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
-  
   script.onload = () => {
-    // Add Julia language explicitly as it's not always in the common bundle
     const juliaScript = document.createElement('script');
     juliaScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/julia.min.js';
     juliaScript.onload = () => {
       document.querySelectorAll('pre code').forEach((block) => {
         if (!block.className) block.classList.add('language-julia');
-        hljs.highlightElement(block);
+        window.hljs && window.hljs.highlightElement(block);
       });
     };
     document.head.appendChild(juliaScript);

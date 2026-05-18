@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagram house style — Harsh Singh</title>
+  <meta name="description" content="Reusable SVG diagram templates for technical posts — architecture, debugging timelines, benchmark visuals.">
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="../css/style.css?v=4">
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav class="navbar" id="navbar"><div class="container"><a href="../index.html" class="nav-logo">harsh.singh</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"><svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button></li></ul><button class="mobile-toggle" id="mobile-toggle" aria-label="Open menu"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button></div></nav>
+<div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
+
+<article class="blog-post">
+  <div class="blog-post-header">
+    <a href="../index.html#blog" class="blog-post-back">← Back to Blog</a>
+    <h1>Diagram house style</h1>
+    <div class="blog-post-meta">
+      <span>Internal reference</span><span>Copy-paste templates</span>
+    </div>
+  </div>
+
+  <div class="blog-post-content">
+
+    <p class="lead">Three reusable diagram templates for technical posts. Inline SVG, no JS, theme-aware. Copy the snippet beneath each example and adjust the labels for your post.</p>
+
+    <p>The visual language is consistent across all three: <strong style="color:var(--c-abstraction)">indigo</strong> for generic abstractions, <strong style="color:var(--c-perf)">green</strong> for performance wins, <strong style="color:var(--c-debug)">amber</strong> for debugging and regressions, <strong style="color:var(--c-instability)">red</strong> for failing CI or numerical instability.</p>
+
+    <hr>
+
+    <!-- ========================================================== -->
+    <!--  1. ARCHITECTURE DIAGRAM                                    -->
+    <!-- ========================================================== -->
+
+    <h2>1 · Architecture diagram</h2>
+    <p>For solver hierarchies, tableau abstractions, dispatch flow, and any "bespoke vs generic" comparison. This is the signature visual.</p>
+
+    <figure class="diagram">
+      <svg viewBox="0 0 720 320" role="img" aria-label="Architecture: bespoke vs generic dispatch">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--border-hover)"/>
+          </marker>
+          <marker id="arrow-acc" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--c-abstraction)"/>
+          </marker>
+        </defs>
+
+        <!-- Column titles -->
+        <text class="diag-caps" x="100" y="22">Before · per-family</text>
+        <text class="diag-caps" x="430" y="22">After · generic dispatch</text>
+
+        <!-- ============ LEFT (bespoke) ============ -->
+        <!-- 3 solver boxes -->
+        <g>
+          <rect class="node" x="20" y="50"  width="120" height="44" rx="8"/>
+          <text class="diag-label" x="80" y="72" text-anchor="middle">KenCarp3</text>
+
+          <rect class="node" x="20" y="130" width="120" height="44" rx="8"/>
+          <text class="diag-label" x="80" y="152" text-anchor="middle">KenCarp4</text>
+
+          <rect class="node" x="20" y="210" width="120" height="44" rx="8"/>
+          <text class="diag-label" x="80" y="232" text-anchor="middle">KenCarp5</text>
+        </g>
+
+        <!-- 3 bespoke perform_step boxes -->
+        <g>
+          <rect class="node" x="200" y="50"  width="140" height="44" rx="8"/>
+          <text class="diag-mono" x="270" y="72" text-anchor="middle">perform_step!</text>
+
+          <rect class="node" x="200" y="130" width="140" height="44" rx="8"/>
+          <text class="diag-mono" x="270" y="152" text-anchor="middle">perform_step!</text>
+
+          <rect class="node" x="200" y="210" width="140" height="44" rx="8"/>
+          <text class="diag-mono" x="270" y="232" text-anchor="middle">perform_step!</text>
+        </g>
+
+        <!-- arrows -->
+        <path class="edge edge-dashed" d="M140 72  L200 72"  marker-end="url(#arrow)"/>
+        <path class="edge edge-dashed" d="M140 152 L200 152" marker-end="url(#arrow)"/>
+        <path class="edge edge-dashed" d="M140 232 L200 232" marker-end="url(#arrow)"/>
+
+        <text class="diag-num" x="170" y="282" text-anchor="middle">~3,300 LOC duplicated</text>
+
+        <!-- ============ RIGHT (generic) ============ -->
+        <g>
+          <rect class="node node-abstraction" x="380" y="50"  width="120" height="44" rx="8"/>
+          <text class="diag-label" x="440" y="72" text-anchor="middle">KenCarp3</text>
+
+          <rect class="node node-abstraction" x="380" y="130" width="120" height="44" rx="8"/>
+          <text class="diag-label" x="440" y="152" text-anchor="middle">KenCarp4</text>
+
+          <rect class="node node-abstraction" x="380" y="210" width="120" height="44" rx="8"/>
+          <text class="diag-label" x="440" y="232" text-anchor="middle">KenCarp5</text>
+        </g>
+
+        <!-- IMEXTableau hub -->
+        <rect class="node node-abstraction" x="540" y="118" width="150" height="68" rx="10"/>
+        <text class="diag-label" x="615" y="146" text-anchor="middle" style="font-weight:600">IMEXTableau</text>
+        <text class="diag-mono" x="615" y="166" text-anchor="middle">{Texp, Timp}</text>
+
+        <!-- converging arrows into hub -->
+        <path class="edge edge-abstraction" d="M500 72  C520 72,  520 140, 540 140" marker-end="url(#arrow-acc)"/>
+        <path class="edge edge-abstraction" d="M500 152 L540 152" marker-end="url(#arrow-acc)"/>
+        <path class="edge edge-abstraction" d="M500 232 C520 232, 520 164, 540 164" marker-end="url(#arrow-acc)"/>
+
+        <!-- single shared perform_step -->
+        <rect class="node node-perf" x="540" y="220" width="150" height="44" rx="8"/>
+        <text class="diag-mono" x="615" y="242" text-anchor="middle" style="fill:var(--text)">perform_step!</text>
+        <path class="edge edge-abstraction" d="M615 186 L615 220" marker-end="url(#arrow-acc)"/>
+
+        <text class="diag-num" x="615" y="288" text-anchor="middle">1 shared kernel</text>
+      </svg>
+      <figcaption><span class="fig-num">Fig 1.</span> Collapsing per-family <b>perform_step!</b> implementations into one generic dispatch driven by <b>IMEXTableau</b>.</figcaption>
+    </figure>
+
+    <h4>Source</h4>
+
+    <figure class="code-figure">
+      <div class="code-figure-head"><span class="filename">architecture.svg</span><span class="lang">HTML</span></div>
+<pre><code>&lt;figure class="diagram"&gt;
+  &lt;svg viewBox="0 0 720 320" role="img" aria-label="..."&gt;
+    &lt;defs&gt;
+      &lt;marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5"
+              markerWidth="6" markerHeight="6" orient="auto-start-reverse"&gt;
+        &lt;path d="M0 0 L10 5 L0 10 z" fill="var(--border-hover)"/&gt;
+      &lt;/marker&gt;
+    &lt;/defs&gt;
+
+    &lt;rect class="node node-abstraction" x="0" y="0" width="120" height="44" rx="8"/&gt;
+    &lt;text class="diag-label" x="60" y="22" text-anchor="middle"&gt;KenCarp3&lt;/text&gt;
+
+    &lt;path class="edge edge-abstraction" d="M120 22 L200 22"
+          marker-end="url(#arrow)"/&gt;
+  &lt;/svg&gt;
+  &lt;figcaption&gt;&lt;span class="fig-num"&gt;Fig 1.&lt;/span&gt; Caption text.&lt;/figcaption&gt;
+&lt;/figure&gt;</code></pre>
+      <figcaption><b>Tokens:</b> <code>.node</code> / <code>.node-abstraction</code> / <code>.node-perf</code> / <code>.node-debug</code> / <code>.node-instability</code> · same suffixes work on <code>.edge</code>. Text classes: <code>.diag-label</code>, <code>.diag-mono</code>, <code>.diag-caps</code>, <code>.diag-num</code>.</figcaption>
+    </figure>
+
+    <hr>
+
+    <!-- ========================================================== -->
+    <!--  2. DEBUGGING TIMELINE                                      -->
+    <!-- ========================================================== -->
+
+    <h2>2 · Debugging timeline</h2>
+    <p>For CI investigations, regression hunts, convergence debugging. Vertical flow, color-coded by stage.</p>
+
+    <figure class="diagram">
+      <svg viewBox="0 0 720 420" role="img" aria-label="Debugging timeline: ARS343 BoundsError">
+        <!-- vertical spine -->
+        <line x1="200" y1="40" x2="200" y2="380" class="edge"/>
+
+        <!-- helper: each row = dot + left meta + right card -->
+
+        <!-- Stage 1: PR merged -->
+        <circle cx="200" cy="60" r="8" class="node node-abstraction"/>
+        <text class="diag-mono"  x="180" y="60" text-anchor="end">2026-04-22</text>
+        <g>
+          <text class="diag-caps"  x="225" y="52" style="fill:var(--c-abstraction)">PR merged</text>
+          <text class="diag-label" x="225" y="72">#3196 — IMEXTableau framework lands in main</text>
+        </g>
+
+        <!-- Stage 2: CI regression -->
+        <circle cx="200" cy="140" r="8" class="node node-instability"/>
+        <text class="diag-mono"  x="180" y="140" text-anchor="end">2026-04-24</text>
+        <g>
+          <text class="diag-caps"  x="225" y="132" style="fill:var(--c-instability)">CI regression</text>
+          <text class="diag-label" x="225" y="152">ARS343 throws BoundsError on adaptive step rejection</text>
+        </g>
+
+        <!-- Stage 3: Investigation -->
+        <circle cx="200" cy="220" r="8" class="node node-debug"/>
+        <text class="diag-mono"  x="180" y="220" text-anchor="end">2026-04-25</text>
+        <g>
+          <text class="diag-caps"  x="225" y="212" style="fill:var(--c-debug)">Investigation</text>
+          <text class="diag-label" x="225" y="232">split_guess indexing one past the implicit stage</text>
+        </g>
+
+        <!-- Stage 4: Root cause -->
+        <circle cx="200" cy="300" r="8" class="node node-debug"/>
+        <text class="diag-mono"  x="180" y="300" text-anchor="end">2026-04-26</text>
+        <g>
+          <text class="diag-caps"  x="225" y="292" style="fill:var(--c-debug)">Root cause</text>
+          <text class="diag-label" x="225" y="312">Off-by-one in stage-count for non-stiffly-accurate methods</text>
+        </g>
+
+        <!-- Stage 5: Fix merged -->
+        <circle cx="200" cy="380" r="8" class="node node-perf"/>
+        <text class="diag-mono"  x="180" y="380" text-anchor="end">2026-04-27</text>
+        <g>
+          <text class="diag-caps"  x="225" y="372" style="fill:var(--c-perf)">Resolved</text>
+          <text class="diag-label" x="225" y="392">#3624 — bounds restored, convergence test added</text>
+        </g>
+      </svg>
+      <figcaption><span class="fig-num">Fig 2.</span> Investigation of <code>ARS343</code> <b>BoundsError</b> — from regression to resolution in five days.</figcaption>
+    </figure>
+
+    <h4>Source</h4>
+
+    <figure class="code-figure">
+      <div class="code-figure-head"><span class="filename">timeline.svg</span><span class="lang">HTML</span></div>
+<pre><code>&lt;figure class="diagram"&gt;
+  &lt;svg viewBox="0 0 720 420" role="img" aria-label="..."&gt;
+    &lt;line x1="200" y1="40" x2="200" y2="380" class="edge"/&gt;
+
+    &lt;!-- each stage: dot + date + heading + description --&gt;
+    &lt;circle cx="200" cy="60" r="8" class="node node-abstraction"/&gt;
+    &lt;text class="diag-mono"  x="180" y="60" text-anchor="end"&gt;2026-04-22&lt;/text&gt;
+    &lt;text class="diag-caps"  x="225" y="52"
+          style="fill:var(--c-abstraction)"&gt;PR merged&lt;/text&gt;
+    &lt;text class="diag-label" x="225" y="72"&gt;#3196 — IMEXTableau lands&lt;/text&gt;
+
+    &lt;!-- repeat with .node-instability, .node-debug, .node-perf for stage type --&gt;
+  &lt;/svg&gt;
+  &lt;figcaption&gt;&lt;span class="fig-num"&gt;Fig 2.&lt;/span&gt; Caption.&lt;/figcaption&gt;
+&lt;/figure&gt;</code></pre>
+      <figcaption><b>Stage palette:</b> indigo = event, red = regression, amber = investigation, green = resolved. Keep 80px vertical gap between stages.</figcaption>
+    </figure>
+
+    <hr>
+
+    <!-- ========================================================== -->
+    <!--  3. BENCHMARK COMPARISON                                    -->
+    <!-- ========================================================== -->
+
+    <h2>3 · Benchmark comparison</h2>
+    <p>For allocations, runtime, timestep counts, convergence. Horizontal bars beat vertical for two-metric comparisons.</p>
+
+    <figure class="diagram">
+      <svg viewBox="0 0 720 280" role="img" aria-label="Benchmark: bespoke vs generic KenCarp4">
+        <!-- axis baseline -->
+        <line x1="200" y1="40" x2="200" y2="240" class="edge"/>
+
+        <!-- Row labels -->
+        <text class="diag-caps"  x="190" y="80"  text-anchor="end">Allocations</text>
+        <text class="diag-mono"  x="190" y="100" text-anchor="end">per step</text>
+
+        <text class="diag-caps"  x="190" y="160" text-anchor="end">Runtime</text>
+        <text class="diag-mono"  x="190" y="180" text-anchor="end">μs per step</text>
+
+        <!-- ALLOCATIONS row -->
+        <!-- bespoke bar (amber) -->
+        <rect class="bar-track" x="220" y="65"  width="440" height="22" rx="4"/>
+        <rect x="220" y="65" width="412" height="22" rx="4" fill="var(--c-debug-soft)" stroke="var(--c-debug)" stroke-width="1"/>
+        <text class="diag-mono"  x="640" y="76" text-anchor="end" style="fill:var(--c-debug)">12 allocs · bespoke</text>
+
+        <!-- generic bar (green) -->
+        <rect class="bar-track" x="220" y="93"  width="440" height="22" rx="4"/>
+        <rect x="220" y="93" width="6" height="22" rx="3" fill="var(--c-perf)"/>
+        <text class="diag-mono"  x="234" y="104" style="fill:var(--c-perf)">0 allocs · generic</text>
+
+        <!-- RUNTIME row -->
+        <rect class="bar-track" x="220" y="145" width="440" height="22" rx="4"/>
+        <rect x="220" y="145" width="288" height="22" rx="4" fill="var(--c-debug-soft)" stroke="var(--c-debug)" stroke-width="1"/>
+        <text class="diag-mono"  x="516" y="156" style="fill:var(--c-debug)">8.4 μs · bespoke</text>
+
+        <rect class="bar-track" x="220" y="173" width="440" height="22" rx="4"/>
+        <rect x="220" y="173" width="280" height="22" rx="4" fill="var(--c-perf-soft)" stroke="var(--c-perf)" stroke-width="1"/>
+        <text class="diag-mono"  x="508" y="184" style="fill:var(--c-perf)">8.2 μs · generic</text>
+
+        <!-- footer note -->
+        <text class="diag-num" x="220" y="225">KenCarp4 · Lotka–Volterra · n=10⁴ steps · Julia 1.11</text>
+      </svg>
+      <figcaption><span class="fig-num">Fig 3.</span> <code>KenCarp4</code> on Lotka–Volterra: generic dispatch removes all 12 per-step allocations with no measurable runtime regression.</figcaption>
+    </figure>
+
+    <h4>Source</h4>
+
+    <figure class="code-figure">
+      <div class="code-figure-head"><span class="filename">benchmark.svg</span><span class="lang">HTML</span></div>
+<pre><code>&lt;!-- one row = track + filled bar + label --&gt;
+&lt;rect class="bar-track" x="220" y="65" width="440" height="22" rx="4"/&gt;
+&lt;rect x="220" y="65" width="412" height="22" rx="4"
+      fill="var(--c-debug-soft)" stroke="var(--c-debug)" stroke-width="1"/&gt;
+&lt;text class="diag-mono" x="640" y="76" text-anchor="end"
+      style="fill:var(--c-debug)"&gt;12 allocs · bespoke&lt;/text&gt;
+
+&lt;!-- "winning" bar uses --c-perf --&gt;
+&lt;rect x="220" y="93" width="6" height="22" rx="3" fill="var(--c-perf)"/&gt;</code></pre>
+      <figcaption><b>Scale convention:</b> 440px = 100% of the chart width. Map your max value to that; everything else is proportional. Bar height 22px, row gap 28px.</figcaption>
+    </figure>
+
+    <hr>
+
+    <h2>Authoring conventions</h2>
+    <ul>
+      <li><strong>Dimensions:</strong> always use <code>viewBox</code>; never hard-code <code>width</code>/<code>height</code> on the <code>&lt;svg&gt;</code>.</li>
+      <li><strong>Colors:</strong> reference <code>var(--c-abstraction)</code>, <code>var(--c-perf)</code>, <code>var(--c-debug)</code>, <code>var(--c-instability)</code> — never hard-coded hex.</li>
+      <li><strong>Text:</strong> use the <code>.diag-label</code>, <code>.diag-mono</code>, <code>.diag-caps</code>, <code>.diag-num</code> classes — don't set font properties inline.</li>
+      <li><strong>Captions:</strong> every figure gets <code>&lt;figcaption&gt;</code> with <code>&lt;span class="fig-num"&gt;Fig N.&lt;/span&gt;</code> prefix.</li>
+      <li><strong>Accessibility:</strong> add <code>role="img"</code> and a descriptive <code>aria-label</code> to every diagram <code>&lt;svg&gt;</code>.</li>
+    </ul>
+
+  </div>
+</article>
+
+<footer class="footer">
+  <div class="container">
+    <p>Diagram house style · <a href="../index.html">harsh.singh</a></p>
+    <p>Internal reference</p>
+  </div>
+</footer>
+
+<script src="../js/main.js?v=4"></script>
+</body>
+</html>

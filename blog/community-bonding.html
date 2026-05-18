@@ -7,23 +7,25 @@
   <meta name="description" content="My GSoC 2026 Week 0 community bonding journey with SciML — generic IMEX tableau refactors, merged PRs, CI debugging, and solver architecture improvements in OrdinaryDiffEq.jl.">
   <meta property="og:title" content="GSoC 2026 Week 0 — Community Bonding">
   <meta property="og:description" content="First week of GSoC 2026 with SciML — mentor syncs, PRs merged, and setting up for the summer.">
-  <link rel="stylesheet" href="../css/style.css?v=3">
+  <link rel="stylesheet" href="../css/style.css?v=4">
 </head>
 <body>
 <div class="grid-bg"></div>
-<nav class="navbar"><div class="container"><a href="../index.html" class="nav-logo">HS.</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle">☀️</button></li></ul><button class="mobile-toggle" id="mobile-toggle">☰</button></div></nav>
+<nav class="navbar" id="navbar"><div class="container"><a href="../index.html" class="nav-logo">harsh.singh</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"><svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button></li></ul><button class="mobile-toggle" id="mobile-toggle" aria-label="Open menu"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button></div></nav>
 <div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
 
 <article class="blog-post">
   <div class="blog-post-header">
-    <a href="../index.html#blog" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">← Back to Blog</a>
-    <h1 style="margin-top:20px;">GSoC 2026 Week 0 — Community Bonding</h1>
+    <a href="../index.html#blog" class="blog-post-back">← Back to Blog</a>
+    <h1>GSoC 2026 Week 0 — Community Bonding</h1>
     <div class="blog-post-meta">
-      <span>📅 May 18, 2026</span><span>🕐 6 min read</span><span class="blog-category">GSoC</span>
+      <span>May 18, 2026</span><span>6 min read</span><span class="blog-category">GSoC</span>
     </div>
   </div>
 
   <div class="blog-post-content">
+    <p class="lead">Week 0 of Google Summer of Code 2026 — community bonding with SciML. Mentor syncs, infrastructure groundwork, and a handful of architectural PRs already merged into <code>OrdinaryDiffEq.jl</code> before the coding phase even starts.</p>
+
     <h2>Introduction</h2>
     <p>Hi, I'm Harsh Singh, a pre-final year Information Technology undergraduate at Sarvajanik College of Engineering and Technology, India. I am passionate about numerical methods, algorithm design, and performance-critical computing. Over the past few months, I've been actively contributing to the open-source Julia and SciML ecosystem.</p>
     <p>I am beyond excited to announce that I have been selected as a contributor for <strong><a href="https://summerofcode.withgoogle.com/" target="_blank">Google Summer of Code (GSoC) 2026</a></strong> under <strong><a href="https://numfocus.org/" target="_blank">NumFOCUS</a></strong>, specifically working with the <strong><a href="https://sciml.ai/" target="_blank">SciML</a></strong> organization.</p>
@@ -32,14 +34,28 @@
     <p>My project is titled <strong>"Native Julia ODE, SDE, DAE, DDE, and PDE Solvers"</strong>.</p>
     <p>Currently, <code>OrdinaryDiffEq.jl</code> — one of the most comprehensive ODE solver libraries — suffers from code duplication. Most solver families have their own bespoke <code>perform_step!</code> implementation. For instance, the logic is identical across KenCarp3, KenCarp4, KenCarp5, and the rest of the IMEX family; only the coefficient tables differ. That's roughly ~3,300 lines of duplicated stepping code!</p>
     
-    <div class="code-block" style="background:#1e293b; padding:15px; border-radius:8px; margin-bottom:20px; font-family:monospace; color:#e2e8f0; font-size:0.9rem; line-height:1.5; overflow-x:auto; white-space:pre-wrap; word-break:break-word;">
-      <span style="color:#ef4444;">// Old Architecture (Duplicated code)</span><br>
-      KenCarp3(coeffs) &rarr; custom perform_step!<br>
-      KenCarp4(coeffs) &rarr; custom perform_step!<br>
-      KenCarp5(coeffs) &rarr; custom perform_step!<br><br>
-      <span style="color:#22c55e;">// New Architecture (Generic)</span><br>
-      IMEXTableau(coeffs) &rarr; shared perform_step!
-    </div>
+    <figure class="code-figure">
+      <div class="code-figure-head">
+        <span class="filename">solver-architecture.jl</span>
+        <span class="lang">Julia</span>
+      </div>
+<pre><code class="language-julia"># Old architecture — duplicated stepping code per family
+KenCarp3(coeffs) → custom perform_step!
+KenCarp4(coeffs) → custom perform_step!
+KenCarp5(coeffs) → custom perform_step!
+
+# New architecture — single generic dispatch
+IMEXTableau(coeffs) → shared perform_step!</code></pre>
+      <figcaption><span class="fig-num">Fig 1.</span> Before/after: collapsing per-family <b>perform_step!</b> kernels into one generic dispatch driven by the tableau.</figcaption>
+    </figure>
+
+    <aside class="callout abstraction">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg></span>
+      <div class="callout-body">
+        <span class="callout-title">Why this matters</span>
+        <p>Every solver family that adopts the generic tableau eliminates an entire bespoke <code>perform_step!</code> — one bug fix now lands across all of them at once, and adding a new IMEX method becomes a tableau-only change.</p>
+      </div>
+    </aside>
 
     <p>This project introduces a generic <code>IMEXTableau{Texplicit, Timplicit}</code> struct that holds the Butcher arrays for any IMEX method, backed by a single shared <code>perform_step!</code> function. We will also extend this generic tableau refactor to all 16 RK-based solver families. This transition ensures easier maintenance, fewer bugs, consistent zero-allocation optimizations, and dramatically easier integration of future numerical methods. We'll additionally build robust multirate methods (MREIL, MIS, MRGARK) to optimize systems where components evolve at vastly different timescales.</p>
     
@@ -92,6 +108,6 @@
 </article>
 
 <footer class="footer"><div class="container"><p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p></div></footer>
-<script src="../js/main.js"></script>
+<script src="../js/main.js?v=4"></script>
 </body>
 </html>
