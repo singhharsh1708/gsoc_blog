@@ -251,6 +251,9 @@ section + section { border-top: 1px solid var(--border); }
   align-items: center; justify-content: center;
 }
 
+.mobile-actions { display: none; align-items: center; gap: 8px; }
+.mobile-actions .theme-toggle { margin-left: 0; }
+
 /* ---------- Buttons ---------- */
 .btn {
   display: inline-flex; align-items: center; gap: 8px;
@@ -1519,6 +1522,7 @@ pre:hover .copy-btn,
 @media (max-width: 768px) {
   .nav-links { display: none; }
   .mobile-toggle { display: inline-flex; }
+  .mobile-actions { display: inline-flex; }
   .blog-grid, .contrib-grid { grid-template-columns: 1fr; }
   .hero { padding: calc(var(--nav-h) + 40px) 0 60px; min-height: auto; }
   .project-card { padding: 24px; }

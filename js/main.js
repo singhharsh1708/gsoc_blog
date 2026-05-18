@@ -34,9 +34,9 @@
 })();
 
 // ===== Theme =====
-const themeToggle = document.getElementById('theme-toggle');
-const themeIcon   = document.getElementById('theme-icon');
-const root        = document.documentElement;
+const themeToggles = document.querySelectorAll('#theme-toggle, #theme-toggle-mobile');
+const themeIcons   = document.querySelectorAll('#theme-icon, #theme-icon-mobile');
+const root         = document.documentElement;
 
 const ICON_SUN  = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
 const ICON_MOON = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
@@ -44,18 +44,18 @@ const ICON_MOON = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
 function setTheme(theme) {
   root.setAttribute('data-theme', theme);
   localStorage.setItem('theme', theme);
-  if (themeIcon) themeIcon.innerHTML = theme === 'dark' ? ICON_SUN : ICON_MOON;
+  themeIcons.forEach(i => { i.innerHTML = theme === 'dark' ? ICON_SUN : ICON_MOON; });
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', theme === 'dark' ? '#0b0d12' : '#fafbfc');
 }
 
 setTheme(localStorage.getItem('theme') || 'dark');
 
-if (themeToggle) {
-  themeToggle.addEventListener('click', () => {
+themeToggles.forEach(btn => {
+  btn.addEventListener('click', () => {
     setTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
   });
-}
+});
 
 // ===== Mobile Nav =====
 const mobileToggle = document.getElementById('mobile-toggle');
