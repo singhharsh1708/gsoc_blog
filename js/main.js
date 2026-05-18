@@ -1,3 +1,38 @@
+// ===== Render posts (from js/posts.js) =====
+// Runs first so the cards exist before fade-in observers and blog filters
+// query the DOM further down.
+(function renderPosts() {
+  const posts = (window.POSTS || []).slice().sort((a, b) => b.date.localeCompare(a.date));
+  if (!posts.length) return;
+
+  const fmtDate = (iso) => {
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const cardHTML = (p) => `
+    <a class="blog-card" href="blog/${p.slug}.html" data-cat="${p.category}">
+      <div class="blog-card-body">
+        <div class="blog-card-meta">
+          <span class="blog-category">${p.categoryLabel}</span>
+          <span>${fmtDate(p.date)}</span>
+        </div>
+        <h3>${p.title}</h3>
+        <p>${p.excerpt}</p>
+      </div>
+      <div class="blog-card-footer">
+        <span>${p.date}</span>
+        <span>${p.readTime}</span>
+      </div>
+    </a>`;
+
+  const latest = document.getElementById('latest-grid');
+  if (latest) latest.innerHTML = posts.slice(0, 3).map(cardHTML).join('');
+
+  const blog = document.getElementById('blog-grid');
+  if (blog) blog.innerHTML = posts.map(cardHTML).join('');
+})();
+
 // ===== Theme =====
 const themeToggle = document.getElementById('theme-toggle');
 const themeIcon   = document.getElementById('theme-icon');
@@ -82,9 +117,9 @@ document.querySelectorAll('.contrib-tab').forEach(tab => {
   });
 });
 
-// ===== Blog Filters =====
+// ===== Blog Filters (scoped to the full blog grid, not the latest preview) =====
 const blogFilters = document.querySelectorAll('.blog-filter');
-const blogCards   = document.querySelectorAll('.blog-card');
+const blogCards   = document.querySelectorAll('#blog-grid .blog-card');
 blogFilters.forEach(filter => {
   filter.addEventListener('click', () => {
     blogFilters.forEach(f => f.classList.remove('active'));
