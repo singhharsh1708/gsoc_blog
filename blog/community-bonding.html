@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GSoC 2026 Week 0 — SciML Community Bonding | Harsh Singh</title>
+  <meta name="description" content="My GSoC 2026 Week 0 community bonding journey with SciML — generic IMEX tableau refactors, merged PRs, CI debugging, and solver architecture improvements in OrdinaryDiffEq.jl.">
+  <meta property="og:title" content="GSoC 2026 Week 0 — Community Bonding">
+  <meta property="og:description" content="First week of GSoC 2026 with SciML — mentor syncs, PRs merged, and setting up for the summer.">
+  <link rel="stylesheet" href="../css/style.css?v=3">
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav class="navbar"><div class="container"><a href="../index.html" class="nav-logo">HS.</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle">☀️</button></li></ul><button class="mobile-toggle" id="mobile-toggle">☰</button></div></nav>
+<div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
+
+<article class="blog-post">
+  <div class="blog-post-header">
+    <a href="../index.html#blog" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">← Back to Blog</a>
+    <h1 style="margin-top:20px;">GSoC 2026 Week 0 — Community Bonding</h1>
+    <div class="blog-post-meta">
+      <span>📅 May 18, 2026</span><span>🕐 6 min read</span><span class="blog-category">GSoC</span>
+    </div>
+  </div>
+
+  <div class="blog-post-content">
+    <h2>Introduction</h2>
+    <p>Hi, I'm Harsh Singh, a pre-final year Information Technology undergraduate at Sarvajanik College of Engineering and Technology, India. I am passionate about numerical methods, algorithm design, and performance-critical computing. Over the past few months, I've been actively contributing to the open-source Julia and SciML ecosystem.</p>
+    <p>I am beyond excited to announce that I have been selected as a contributor for <strong><a href="https://summerofcode.withgoogle.com/" target="_blank">Google Summer of Code (GSoC) 2026</a></strong> under <strong><a href="https://numfocus.org/" target="_blank">NumFOCUS</a></strong>, specifically working with the <strong><a href="https://sciml.ai/" target="_blank">SciML</a></strong> organization.</p>
+
+    <h2>About the Project</h2>
+    <p>My project is titled <strong>"Native Julia ODE, SDE, DAE, DDE, and PDE Solvers"</strong>.</p>
+    <p>Currently, <code>OrdinaryDiffEq.jl</code> — one of the most comprehensive ODE solver libraries — suffers from code duplication. Most solver families have their own bespoke <code>perform_step!</code> implementation. For instance, the logic is identical across KenCarp3, KenCarp4, KenCarp5, and the rest of the IMEX family; only the coefficient tables differ. That's roughly ~3,300 lines of duplicated stepping code!</p>
+    
+    <div class="code-block" style="background:#1e293b; padding:15px; border-radius:8px; margin-bottom:20px; font-family:monospace; color:#e2e8f0; font-size:0.9rem; line-height:1.5; overflow-x:auto; white-space:pre-wrap; word-break:break-word;">
+      <span style="color:#ef4444;">// Old Architecture (Duplicated code)</span><br>
+      KenCarp3(coeffs) &rarr; custom perform_step!<br>
+      KenCarp4(coeffs) &rarr; custom perform_step!<br>
+      KenCarp5(coeffs) &rarr; custom perform_step!<br><br>
+      <span style="color:#22c55e;">// New Architecture (Generic)</span><br>
+      IMEXTableau(coeffs) &rarr; shared perform_step!
+    </div>
+
+    <p>This project introduces a generic <code>IMEXTableau{Texplicit, Timplicit}</code> struct that holds the Butcher arrays for any IMEX method, backed by a single shared <code>perform_step!</code> function. We will also extend this generic tableau refactor to all 16 RK-based solver families. This transition ensures easier maintenance, fewer bugs, consistent zero-allocation optimizations, and dramatically easier integration of future numerical methods. We'll additionally build robust multirate methods (MREIL, MIS, MRGARK) to optimize systems where components evolve at vastly different timescales.</p>
+    
+    <h2>Community Bonding Activities</h2>
+    <p>The community bonding period is all about aligning with the community, setting up the development environment, and preparing for the coding phase. I've had a highly productive Week 0:</p>
+    
+    <ul>
+      <li><strong>Discussions with Mentors:</strong> I synced up with Chris Rackauckas regarding expectations for the midterm evaluation. We agreed that by Week 6, the IMEXTableau should be fully stable and merged (ARS/ESDIRK + another method like Pareschi–Russo), alongside the initial RK migration (like LowStorageRK).</li>
+      <li><strong>Reviewing Previous PRs/Issues:</strong> I've been actively following the discussions surrounding the generic tableau architectures and resolving immediate bugs and behavioral regressions from my early groundwork.</li>
+      <li><strong>Running Tests &amp; Benchmarks:</strong> I spent significant time testing the new abstractions against existing benchmarks to ensure strict zero-allocation performance and correctness.</li>
+    </ul>
+
+    <h2>Technical Learnings &amp; Contributions</h2>
+    <p>Rather than just reading documentation, I spent my bonding period actively shipping code to stabilize the abstractions I proposed. Over the past couple of weeks, several major architectural PRs were merged into <code>OrdinaryDiffEq.jl</code>. Most of this work focused on reducing duplication while preserving numerical correctness and zero-allocation performance guarantees.</p>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3196" target="_blank"><strong>#3196:</strong></a> Introduced the generic IMEX tableau abstraction with shared <code>perform_step!</code> for ARS/ESDIRK methods.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3641" target="_blank"><strong>#3641:</strong></a> Fixed crucial behavioral regressions in the generic SDIRK/IMEX stepping kernels.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3621" target="_blank"><strong>#3621:</strong></a> Unified SFSDIRK4-8 and Hairer4/42 into a robust generic <code>PureSDIRK</code> implementation.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3590" target="_blank"><strong>#3590:</strong></a> Refactored LowStorageRK, unifying <code>alg_cache</code> and resolving unbound type parameter issues.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3591" target="_blank"><strong>#3591:</strong></a> Specialized the tableau, extras, and interpolation constructors for Verner solvers.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3597" target="_blank"><strong>#3597:</strong></a> Tightened the Kvaerno3 + NLFunctional convergence test to fix algebraic solver issues.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3624" target="_blank"><strong>#3624:</strong></a> Fixed an ARS343 BoundsError by adjusting <code>split_guess</code> indices.</li>
+    </ul>
+
+    <h3>What I've Learned So Far</h3>
+    <p>This initial refactoring phase has been highly educational. I've learned first-hand how numerical behavior changes under generic abstractions and the critical importance of preserving solver invariants. I also realized just how sensitive CI convergence tests are in scientific computing. Balancing clean architectural abstraction with the strict performance demands of a zero-allocation numerical kernel requires meticulous attention to detail.</p>
+
+    <h2>Challenges Faced</h2>
+    <p>Refactoring the core stepper of an ecosystem as vast as SciML comes with intricate challenges:</p>
+    <ul>
+      <li><strong>Behavioral Regressions:</strong> While unifying SDIRK/IMEX, maintaining identical numerical behavior to the old bespoke methods took intense debugging, as seen in PR #3641.</li>
+      <li><strong>Convergence Test Sensitivities:</strong> Trivial changes in generic dispatch occasionally trigger failures in highly sensitive convergence tests (e.g., Kvaerno3 + NLFunctional), forcing me to deeply investigate tolerance levels and algebraic solver interplay.</li>
+      <li><strong>Type Stability &amp; Bounds:</strong> Unifying caches meant tracking down tricky unbound type parameters and resolving <code>BoundsError</code> bugs when generic arrays interact with specific solver assumptions.</li>
+    </ul>
+
+    <h2>Goals for the Upcoming Weeks</h2>
+    <p>As we transition into the official coding phase, my main goals are:</p>
+    <ul>
+      <li>Finalize and harden the <code>IMEXTableau</code> abstraction (ensuring zero-allocations and speed parity).</li>
+      <li>Introduce the Pareschi–Russo IMEX-ARK method as the next robust test for the generic framework.</li>
+      <li>Aggressively migrate the <code>LowStorageRK</code> solver family.</li>
+      <li>Ensure all migrated solvers seamlessly pass the strict convergence and regression suites.</li>
+      <li>Begin architectural planning for the linearly implicit multirate solver (MREIL).</li>
+    </ul>
+
+    <h2>Closing Thoughts</h2>
+    <p>I’m incredibly excited to begin the coding period! Tackling these foundational abstractions and learning from incredible mentors like Chris Rackauckas, Kanav Gupta, Utkarsh, and Oscar Smith is an amazing opportunity. The SciML community has been incredibly welcoming during the bonding period, which makes the work all the more rewarding. The groundwork has been laid, the CI is green, and I'm ready to dive deeper into the SciML ecosystem.</p>
+
+  </div>
+</article>
+
+<footer class="footer"><div class="container"><p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p></div></footer>
+<script src="../js/main.js"></script>
+</body>
+</html>
