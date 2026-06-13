@@ -31,6 +31,15 @@
 
     <h2>Hardening the SDIRK/IMEX stepper</h2>
     <p>The risk with a generic kernel is subtle behavioral drift: a method that used to converge in <em>n</em> Newton iterations now takes <em>n+1</em>, or an embedded error estimate is computed slightly differently and adaptivity changes. Most of this cycle was hunting down and closing those gaps.</p>
+
+    <aside class="callout debug">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M19 7l-3 2M5 7l3 2M19 17l-3-2M5 17l3-2M12 2v4M3 13h3M18 13h3"/></svg></span>
+      <div class="callout-body">
+        <span class="callout-title">Where the bugs hid</span>
+        <p>The nastiest regression was <a href="https://github.com/SciML/OrdinaryDiffEq.jl/issues/3659" target="_blank">#3659</a>: <code>ESDIRK659L2SA</code>'s embedded coefficients were subtly wrong, so adaptive solves silently took the wrong step sizes — passing "does it run" while failing "does it converge correctly." It's the kind of bug a generic refactor surfaces precisely because every family now shares one error-estimation path.</p>
+      </div>
+    </aside>
+
     <ul>
       <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3650" target="_blank"><strong>#3650:</strong></a> Unified error estimation under a single dispatched <code>calculate_error_estimate!</code>, so embedded-pair error control lives in one place instead of being re-derived per family.</li>
       <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3651" target="_blank"><strong>#3651:</strong></a> Migrated <code>CFNLIRK3</code> into the <code>ESDIRKIMEX</code> tableau form.</li>
@@ -45,10 +54,10 @@
     <h3>Reusing the W matrix as a Jacobian</h3>
     <p>A satisfying optimization this cycle: teaching the nonlinear solver to reuse work the ODE integrator already does. The implicit RK stages factor a <code>W = I − γΔt·J</code> matrix every step; the embedded nonlinear solve was recomputing Jacobian information it could have borrowed straight from the integrator.</p>
 
-    <aside class="callout abstraction">
-      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg></span>
+    <aside class="callout perf">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
       <div class="callout-body">
-        <span class="callout-title">Why this matters</span>
+        <span class="callout-title">Performance win</span>
         <p>The Jacobian is usually the most expensive object in an implicit solve. If the integrator already holds an up-to-date <code>W</code>, handing it to the nonlinear solver as an analytic Jacobian avoids a redundant evaluation per step — free performance with no change to the math.</p>
       </div>
     </aside>
@@ -75,6 +84,14 @@ ARS443()   # 4 stages, 4 implicit, 3rd order</code></pre>
       <figcaption><span class="fig-num">Fig 1.</span> The ARS schemes registered as tableaus over the shared generic stepper — <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3704" target="_blank">#3704</a>.</figcaption>
     </figure>
 
+    <aside class="callout abstraction">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg></span>
+      <div class="callout-body">
+        <span class="callout-title">The leverage, made concrete</span>
+        <p>Three vetted IMEX methods, zero new <code>perform_step!</code> code. Adding a scheme went from "write and debug a kernel" to "write down a tableau and a test" — the entire point of the refactor, finally visible.</p>
+      </div>
+    </aside>
+
     <h2>Challenges this cycle</h2>
     <ul>
       <li><strong>Behavioral parity:</strong> keeping the generic stepper numerically identical to the old bespoke methods meant a lot of careful before/after comparison on convergence and step-count, not just "does it run."</li>
@@ -88,6 +105,17 @@ ARS443()   # 4 stages, 4 implicit, 3rd order</code></pre>
       <li>Begin the multirate deliverable: get the first explicit multirate solvers into <code>OrdinaryDiffEq.jl</code>.</li>
       <li>Keep the convergence and zero-allocation suites green across every migration.</li>
     </ul>
+
+    <h2>The fortnight at a glance</h2>
+    <div class="timeline-wrap">
+      <div class="timeline">
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">May 18</p><h4>Error estimation unified</h4><p>One dispatched <code>calculate_error_estimate!</code> for every SDIRK/IMEX family (#3650).</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">May 19–22</p><h4>ESDIRK migrations &amp; fixes</h4><p>CFNLIRK3, ABDF2, L2SA specialization, embedded-pair test, stage-predictor menu (#3651–#3668).</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">May 23</p><h4>linsolve propagation fixed</h4><p>The configured linear solver now reaches the inner Newton solve (#3670).</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">May 27–30</p><h4>W matrix reused as Jacobian</h4><p>NonlinearSolveAlg borrows the integrator's <code>W</code>; modified-Newton extended to nlstep/DAE/OOP (#3693, #3703).</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">May 31</p><h4>First ARS methods land</h4><p>ARS222/232/443 ship as tableau-only additions — the refactor pays off (#3704).</p></div></div>
+      </div>
+    </div>
 
     <h2>Closing thoughts</h2>
     <p>This was the half of the project that doesn't make for flashy screenshots, but it's the half everything else rests on. Watching ARS222/232/443 drop in as pure tableau definitions at the end of the fortnight was the proof the refactor was working as designed — adding a vetted method went from "write and debug a kernel" to "write down a tableau and a test." Next up: the rest of the IMEX family, and the first multirate solvers.</p>
