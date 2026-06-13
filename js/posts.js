@@ -7,6 +7,15 @@
 
 window.POSTS = [
   {
+    slug: 'coding-weeks-1-4',
+    title: 'GSoC Weeks 1–4: New IMEX Schemes & the First Multirate Solvers',
+    excerpt: 'The coding phase pays off — finalizing the SDIRK/IMEX tableau, shipping ARS/IMEX-SSP/BHR methods, and landing the first multirate solvers (MRAB, MIS2, MRI-GARK).',
+    date: '2026-06-13',
+    readTime: '8 min read',
+    category: 'gsoc',
+    categoryLabel: 'GSoC',
+  },
+  {
     slug: 'community-bonding',
     title: 'GSoC Week 0: Community Bonding',
     excerpt: "Community bonding week of GSoC 2026 — first mentor meeting, understanding the codebase plan, and what I'm diving into.",
