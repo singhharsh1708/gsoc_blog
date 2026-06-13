@@ -66,6 +66,22 @@ MRI_GARK_ERK22b()</code></pre>
       <figcaption><span class="fig-num">Fig 1.</span> The MRI-GARK structure — slow dynamics as a forcing function on a fast inner ODE.</figcaption>
     </figure>
 
+    <aside class="callout debug">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M19 7l-3 2M5 7l3 2M19 17l-3-2M5 17l3-2M12 2v4M3 13h3M18 13h3"/></svg></span>
+      <div class="callout-body">
+        <span class="callout-title">The hardest debugging of the cycle</span>
+        <p>Translating Sandu's MRI-GARK coupling coefficients into an allocation-free stepper was straightforward; getting the slow-forcing accumulation to match the <em>reference order</em> numerically was not. A convergence study that plateaus at order 1.8 instead of 2.0 means a coupling term is subtly misplaced — and the only way to find it is to bisect the accumulation against a hand-worked reference step.</p>
+      </div>
+    </aside>
+
+    <aside class="callout perf">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+      <div class="callout-body">
+        <span class="callout-title">Performance win</span>
+        <p>The follow-up <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3741" target="_blank">#3741</a> fused the slow-forcing accumulation so the coupling contribution is built up in a single pass instead of re-summing per inner step — less redundant work in the hottest loop of the multirate stepper, with the numerics unchanged.</p>
+      </div>
+    </aside>
+
     <h3>In flight</h3>
     <p>As I write this, the MRI-GARK order ladder is still climbing, plus a cross-repo fix:</p>
     <ul>
@@ -77,7 +93,6 @@ MRI_GARK_ERK22b()</code></pre>
 
     <h2>Challenges this cycle</h2>
     <ul>
-      <li><strong>Getting MRI-GARK coupling right:</strong> the Multirate Infinitesimal framework expresses the slow dynamics as a forcing function on an inner ODE integrated over each slow stage. Translating Sandu's coupling coefficients into an allocation-free stepper — and getting the slow-forcing accumulation to match the reference order numerically — was the hardest debugging of the cycle.</li>
       <li><strong>Non-ESDIRK structures:</strong> as noted above, the IMEX-SSP methods forced the tableau abstraction to generalize beyond its original ESDIRK assumptions.</li>
       <li><strong>File-structure churn:</strong> #3717's refactor of the multirate tableau/file layout was a deliberate investment — paying a one-time reorganization cost so #3724, #3747, and #3751 could each be small, focused additions.</li>
     </ul>
@@ -90,6 +105,18 @@ MRI_GARK_ERK22b()</code></pre>
       <li>Push toward an implicit/IMEX MRI-GARK variant now that the explicit framework is unified.</li>
       <li>Keep the convergence and zero-allocation suites green across everything added.</li>
     </ul>
+
+    <h2>The fortnight at a glance</h2>
+    <div class="timeline-wrap">
+      <div class="timeline">
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jun 1</p><h4>IMEX-RK family completed</h4><p>IMEX-SSP + BHR(5,5,3) round out the family on the generic stepper (#3705, #3706).</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jun 2</p><h4>First multirate solver</h4><p>MRAB (Adams–Bashforth k-step) explicit solver lands (#3707).</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jun 5</p><h4>MIS2 + multirate refactor</h4><p>Wensch–Knoth–Galant MIS2, plus a tableau/file restructure for what's next (#3717).</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jun 6</p><h4>Into MRI-GARK</h4><p>First Multirate Infinitesimal GARK methods: ERK22a/22b (#3724).</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jun 11</p><h4>Slow-forcing fused</h4><p>Coupling accumulation built in a single pass (#3741).</p></div></div>
+        <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jun 12–13 · in review</p><h4>Climbing the order ladder</h4><p>ERK33a + unified formulation (#3747) and 4th-order ERK45a (#3751) open for review.</p></div></div>
+      </div>
+    </div>
 
     <h2>Closing thoughts</h2>
     <p>This is the stretch where the architecture stopped being a promise and started being a tool. Completing the IMEX family was almost mechanical thanks to the Weeks 1–2 groundwork — but multirate is genuinely new ground, and getting the first MRI-GARK methods to match their reference orders has been the most satisfying part of GSoC so far. Onward to the midterm.</p>
