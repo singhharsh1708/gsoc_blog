@@ -7,11 +7,20 @@
 
 window.POSTS = [
   {
-    slug: 'coding-weeks-1-4',
-    title: 'GSoC Weeks 1–4: New IMEX Schemes & the First Multirate Solvers',
-    excerpt: 'The coding phase pays off — finalizing the SDIRK/IMEX tableau, shipping ARS/IMEX-SSP/BHR methods, and landing the first multirate solvers (MRAB, MIS2, MRI-GARK).',
+    slug: 'coding-weeks-3-4',
+    title: 'GSoC Weeks 3–4: IMEX-RK Methods & the First Multirate Solvers',
+    excerpt: 'Completing the IMEX-RK family (IMEX-SSP, BHR) on the generic stepper, then landing the first multirate solvers — MRAB, MIS2, and the first MRI-GARK methods.',
     date: '2026-06-13',
-    readTime: '8 min read',
+    readTime: '7 min read',
+    category: 'gsoc',
+    categoryLabel: 'GSoC',
+  },
+  {
+    slug: 'coding-weeks-1-2',
+    title: 'GSoC Weeks 1–2: Finishing the IMEX Tableau Refactor',
+    excerpt: 'Hardening the generic SDIRK/IMEX stepper to behave identically to the bespoke kernels, reusing the ODE W matrix as a Jacobian, and landing the first ARS IMEX-RK methods.',
+    date: '2026-05-31',
+    readTime: '6 min read',
     category: 'gsoc',
     categoryLabel: 'GSoC',
   },

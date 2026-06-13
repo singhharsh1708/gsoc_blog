@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GSoC 2026 Weeks 1–2 — Finishing the IMEX Tableau Refactor | Harsh Singh</title>
+  <meta name="description" content="GSoC 2026 coding-phase update with SciML — hardening the generic SDIRK/IMEX tableau, reusing the ODE W matrix as a Jacobian, and landing the first ARS IMEX-RK methods in OrdinaryDiffEq.jl.">
+  <meta property="og:title" content="GSoC 2026 Weeks 1–2 — Finishing the IMEX Tableau Refactor">
+  <meta property="og:description" content="Making the generic stepper behave identically to the bespoke kernels — then landing the first real IMEX-RK methods on top of it.">
+  <link rel="stylesheet" href="../css/style.css?v=7">
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav class="navbar" id="navbar"><div class="container"><a href="../index.html" class="nav-logo">singhharsh.in</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"><svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button></li></ul><div class="mobile-actions"><button class="theme-toggle" id="theme-toggle-mobile" aria-label="Toggle theme"><svg id="theme-icon-mobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button><button class="mobile-toggle" id="mobile-toggle" aria-label="Open menu"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button></div></div></nav>
+<div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
+
+<article class="blog-post">
+  <div class="blog-post-header">
+    <a href="../index.html#blog" class="blog-post-back">← Back to Blog</a>
+    <h1>GSoC 2026 Weeks 1–2 — Finishing the IMEX Tableau Refactor</h1>
+    <div class="blog-post-meta">
+      <span>May 31, 2026</span><span>6 min read</span><span class="blog-category">GSoC</span>
+    </div>
+  </div>
+
+  <div class="blog-post-content">
+    <p class="lead">The coding phase has begun. These first two weeks were about closing the loop on the foundation — making the generic <code>IMEXTableau</code> stepper behave <em>identically</em> to the bespoke kernels it replaces, before I trusted it with any new method. By the end of the fortnight, it had earned that trust: the first ARS IMEX-RK schemes landed as tableau-only changes.</p>
+
+    <h2>Picking up from community bonding</h2>
+    <p>In the <a href="community-bonding.html">Week 0 post</a> I laid out the plan: collapse the per-family <code>perform_step!</code> kernels into a single generic dispatch driven by a Butcher tableau, then use that foundation to add new methods cheaply. Weeks 1–2 were the unglamorous but essential half of that — hardening the abstraction so it's a reliable base, not a leaky one.</p>
+
+    <h2>Hardening the SDIRK/IMEX stepper</h2>
+    <p>The risk with a generic kernel is subtle behavioral drift: a method that used to converge in <em>n</em> Newton iterations now takes <em>n+1</em>, or an embedded error estimate is computed slightly differently and adaptivity changes. Most of this cycle was hunting down and closing those gaps.</p>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3650" target="_blank"><strong>#3650:</strong></a> Unified error estimation under a single dispatched <code>calculate_error_estimate!</code>, so embedded-pair error control lives in one place instead of being re-derived per family.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3651" target="_blank"><strong>#3651:</strong></a> Migrated <code>CFNLIRK3</code> into the <code>ESDIRKIMEX</code> tableau form.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3654" target="_blank"><strong>#3654:</strong></a> Forced type specialization of the <code>ESDIRK*L2SA</code> tableau dispatches to keep them zero-allocation and type-stable.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3656" target="_blank"><strong>#3656:</strong></a> Migrated the <code>ABDF2</code> Euler cache onto <code>ESDIRKIMEXCache</code> and dropped the legacy implicit-Euler caches.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3661" target="_blank"><strong>#3661:</strong></a> Added a tableau embedded-pair consistency test for adaptive SDIRK/ESDIRK methods — a guardrail so future tableau edits can't silently break adaptivity.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3662" target="_blank"><strong>#3662:</strong></a> Fixed the <code>ESDIRK659L2SA</code> embedded coefficients so adaptive solves actually work (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/issues/3659" target="_blank">#3659</a>).</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3668" target="_blank"><strong>#3668:</strong></a> Added a generic stage-predictor menu for ESDIRK methods, so initial guesses for the implicit stages can be chosen consistently across the family.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3670" target="_blank"><strong>#3670:</strong></a> Fixed <code>linsolve</code> propagation through the nonlinear-solver algorithm so the configured linear solver actually reaches the inner Newton solve.</li>
+    </ul>
+
+    <h3>Reusing the W matrix as a Jacobian</h3>
+    <p>A satisfying optimization this cycle: teaching the nonlinear solver to reuse work the ODE integrator already does. The implicit RK stages factor a <code>W = I − γΔt·J</code> matrix every step; the embedded nonlinear solve was recomputing Jacobian information it could have borrowed straight from the integrator.</p>
+
+    <aside class="callout abstraction">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg></span>
+      <div class="callout-body">
+        <span class="callout-title">Why this matters</span>
+        <p>The Jacobian is usually the most expensive object in an implicit solve. If the integrator already holds an up-to-date <code>W</code>, handing it to the nonlinear solver as an analytic Jacobian avoids a redundant evaluation per step — free performance with no change to the math.</p>
+      </div>
+    </aside>
+
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3693" target="_blank"><strong>#3693:</strong></a> Made <code>NonlinearSolveAlg</code> reuse the ODE solver's <code>W</code> matrix as an analytic Jacobian (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/issues/2757" target="_blank">#2757</a>).</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3703" target="_blank"><strong>#3703:</strong></a> Extended the modified-Newton path to the <code>nlstep</code>/DAE/out-of-place code paths (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/issues/3696" target="_blank">#3696</a>).</li>
+    </ul>
+
+    <h2>The payoff: first ARS methods land</h2>
+    <p>With the foundation solid, the very end of the fortnight delivered the first real dividend. The Ascher–Ruuth–Spiteri (ARS) IMEX-RK schemes — workhorses for convection–diffusion–reaction problems where the stiff part is treated implicitly and the rest explicitly — went in as a pair of Butcher tableaus over the shared kernel. No new <code>perform_step!</code>, no new cache, no new bug surface.</p>
+
+    <figure class="code-figure">
+      <div class="code-figure-head">
+        <span class="filename">imex-method.jl</span>
+        <span class="lang">Julia</span>
+      </div>
+<pre><code class="language-julia"># Adding a new IMEX method is now tableau-only:
+# define the explicit + implicit Butcher arrays, register the alg,
+# and the shared perform_step! does the rest.
+ARS222()   # Ascher–Ruuth–Spiteri (2 stages, 2 implicit, 2nd order)
+ARS232()
+ARS443()   # 4 stages, 4 implicit, 3rd order</code></pre>
+      <figcaption><span class="fig-num">Fig 1.</span> The ARS schemes registered as tableaus over the shared generic stepper — <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3704" target="_blank">#3704</a>.</figcaption>
+    </figure>
+
+    <h2>Challenges this cycle</h2>
+    <ul>
+      <li><strong>Behavioral parity:</strong> keeping the generic stepper numerically identical to the old bespoke methods meant a lot of careful before/after comparison on convergence and step-count, not just "does it run."</li>
+      <li><strong>Tolerance sensitivity:</strong> the embedded-pair consistency test (#3661) exists precisely because small dispatch changes can perturb adaptive error estimates — and a few existing tests turned out to be quietly over-tight.</li>
+      <li><strong>Type specialization:</strong> #3654 was a reminder that "generic" and "zero-allocation" pull against each other — the <code>ESDIRK*L2SA</code> dispatches needed forced specialization to stay type-stable.</li>
+    </ul>
+
+    <h2>Goals for the next two weeks</h2>
+    <ul>
+      <li>Expand the IMEX-RK family on the now-stable stepper — IMEX-SSP and the Boscarino–Russo BHR schemes.</li>
+      <li>Begin the multirate deliverable: get the first explicit multirate solvers into <code>OrdinaryDiffEq.jl</code>.</li>
+      <li>Keep the convergence and zero-allocation suites green across every migration.</li>
+    </ul>
+
+    <h2>Closing thoughts</h2>
+    <p>This was the half of the project that doesn't make for flashy screenshots, but it's the half everything else rests on. Watching ARS222/232/443 drop in as pure tableau definitions at the end of the fortnight was the proof the refactor was working as designed — adding a vetted method went from "write and debug a kernel" to "write down a tableau and a test." Next up: the rest of the IMEX family, and the first multirate solvers.</p>
+
+  </div>
+</article>
+
+<footer class="footer"><div class="container"><p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p></div></footer>
+<script src="../js/main.js?v=6"></script>
+</body>
+</html>
