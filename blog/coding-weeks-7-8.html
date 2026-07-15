@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GSoC 2026 Weeks 7–8 — The First Implicit Multirate Solvers | Harsh Singh</title>
+  <meta name="description" content="GSoC 2026 coding-phase update with SciML — landing the first solve-decoupled implicit MRI-GARK methods (IRK21a, ESDIRK34a), a new SDIRK scheme, mass-matrix/W-operator plumbing fixes, and an extrapolation error-estimate correction in OrdinaryDiffEq.jl.">
+  <meta property="og:title" content="GSoC 2026 Weeks 7–8 — The First Implicit Multirate Solvers">
+  <meta property="og:description" content="The NonlinearSolveAlg hardening pays off: the first implicit multirate solvers land, plus mass-matrix/W-operator plumbing fixes and a new SDIRK scheme.">
+  <link rel="stylesheet" href="../css/style.css?v=7">
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav class="navbar" id="navbar"><div class="container"><a href="../index.html" class="nav-logo">singhharsh.in</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"><svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button></li></ul><div class="mobile-actions"><button class="theme-toggle" id="theme-toggle-mobile" aria-label="Toggle theme"><svg id="theme-icon-mobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button><button class="mobile-toggle" id="mobile-toggle" aria-label="Open menu"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button></div></div></nav>
+<div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
+
+<article class="blog-post">
+  <div class="blog-post-header">
+    <a href="../index.html#blog" class="blog-post-back">← Back to Blog</a>
+    <h1>GSoC 2026 Weeks 7–8 — The First Implicit Multirate Solvers</h1>
+    <div class="blog-post-meta">
+      <span>July 12, 2026</span><span>8 min read</span><span class="blog-category">GSoC</span>
+    </div>
+  </div>
+
+  <div class="blog-post-content">
+    <p class="lead">The <a href="coding-weeks-5-6.html">NonlinearSolveAlg hardening</a> from last cycle paid off immediately: this fortnight landed the first two implicit MRI-GARK solvers, plus a run of mass-matrix and <code>WOperator</code> plumbing fixes the implicit path exposed, a new SDIRK scheme, and a correctness fix in the extrapolation family.</p>
+
+    <h2>The first implicit multirate solvers</h2>
+    <p>Explicit MRI-GARK methods can't handle a stiff slow subsystem — the whole point of going implicit. <em>Solve-decoupled</em> implicit multirate methods solve a nonlinear system for the slow stage value, then integrate the fast component as a forced sub-problem, without coupling the two solves together.</p>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3811" target="_blank"><strong>#3811:</strong></a> Added <code>MRIGARKIRK21a</code> (Sandu 2019), the first implicit member of the family — order 2, solving <code>SplitODEProblem</code>s <code>du/dt = f1(u,t) + f2(u,t)</code> (fast/slow, SciML convention) with the slow stages coupled implicitly to <code>f2</code> at the stage endpoint.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3812" target="_blank"><strong>#3812:</strong></a> Added <code>MRIGARKESDIRK34a</code>, order 3, a 6-stage method built directly on the solve-decoupled machinery from #3811 — and, critically, stable when the <strong>slow</strong> subsystem is itself stiff, which no explicit MRI-GARK method in the package can handle.</li>
+    </ul>
+
+    <figure class="code-figure">
+      <div class="code-figure-head">
+        <span class="filename">multirate_implicit.jl</span>
+        <span class="lang">Julia</span>
+      </div>
+<pre><code class="language-julia"># Solve-decoupled implicit MRI-GARK: each slow stage solves a
+# nonlinear system for its endpoint value, then the fast component
+# is integrated as a forced sub-problem — the two solves never couple.
+sol = solve(prob, MRIGARKIRK21a(fast_method))       # order 2
+sol = solve(prob, MRIGARKESDIRK34a(fast_method))    # order 3, stiff-slow-stable</code></pre>
+      <figcaption><span class="fig-num">Fig 1.</span> The two implicit MRI-GARK methods landed this fortnight.</figcaption>
+    </figure>
+
+    <aside class="callout abstraction">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg></span>
+      <div class="callout-body">
+        <span class="callout-title">Where the Weeks 5–6 work paid off</span>
+        <p>#3811 is the exact code path that #3799's <code>NonlinearSolveCache</code> resize fix and #3753's <code>WOperator</code> W-reuse extension exist for. Writing the stepper itself took less time than the prep work — the payoff of fixing the foundation first instead of debugging both layers at once.</p>
+      </div>
+    </aside>
+
+    <h2>Mass-matrix and WOperator plumbing</h2>
+    <p>Running the implicit solvers against DAE-flavored and operator-based problems surfaced a cluster of related gaps in how the package handles non-<code>Matrix</code> mass matrices and Jacobians:</p>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3796" target="_blank"><strong>#3796:</strong></a> Made the out-of-place <code>NLNewton</code> path handle an <code>AbstractSciMLOperator</code> W via <code>update_coefficients!</code> + materialize, instead of erroring outright.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3824" target="_blank"><strong>#3824:</strong></a> Fixed OOP <code>build_J_W</code> for a <code>MatrixOperator</code> mass matrix — the fallback path built W via <code>lu_instance(J - f.mass_matrix * inv(dtgamma))</code>, which for a <code>MatrixOperator</code> produces an <code>AddedOperator</code> with no <code>lu_instance</code> method, erroring at cache construction.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3795" target="_blank"><strong>#3795:</strong></a> Piped <code>wrapprecs</code> into the inner algorithm in <code>NonlinearSolveAlg</code> and updated the preconditioner weight per step, instead of leaving it stale after the first solve.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3837" target="_blank"><strong>#3837:</strong></a> Fixed <code>get_differential_vars</code> to accept <code>IdentityOperator</code> and <code>ScalarOperator</code> mass matrices — a follow-up to #3814 that hit <code>MethodError: no method matching iterate(::IdentityOperator)</code> because the function tried to iterate the operator directly instead of treating it like <code>UniformScaling</code>.</li>
+    </ul>
+
+    <aside class="callout debug">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M19 7l-3 2M5 7l3 2M19 17l-3-2M5 17l3-2M12 2v4M3 13h3M18 13h3"/></svg></span>
+      <div class="callout-body">
+        <span class="callout-title">A pattern, not four bugs</span>
+        <p>#3796, #3824, and #3837 are the same root cause wearing three different masks: code that assumes W or the mass matrix is a concrete <code>Matrix</code> and falls over when it's an <code>AbstractSciMLOperator</code> instead. Each fix is small on its own, but recognizing the pattern across three call sites was what let #3837 get diagnosed in minutes instead of hours.</p>
+      </div>
+    </aside>
+
+    <h2>Elsewhere in the package</h2>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3827" target="_blank"><strong>#3827:</strong></a> Added <code>ESDIRK3(2)5L[2]SA</code> (Kennedy-Carpenter 2019, order 3) — the last remaining scheme from that paper; the other five were already in <code>OrdinaryDiffEqSDIRK</code>.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3756" target="_blank"><strong>#3756:</strong></a> Fixed the extrapolation error-estimate denominator to use the actual step endpoints <code>max(|uprev|, |u|)</code> instead of <code>max(|u₀|, |u₁|)</code>, where <code>u₁</code> is the lower-order non-stepped extrapolation candidate whose magnitude was incorrectly leaking into step-size control.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3828" target="_blank"><strong>#3828:</strong></a> Bumped the <code>SciMLBase</code> compat floor from 3.10 to 3.30 across sublibraries, aligning everything on the version the mass-matrix fixes above actually need.</li>
+    </ul>
+
+    <h2>Challenges this cycle</h2>
+    <ul>
+      <li><strong>Debugging across two solves:</strong> a solve-decoupled implicit multirate failure can originate in the slow nonlinear solve, the fast forced sub-integration, or the coupling between them — isolating which one meant instrumenting each independently rather than trusting the first stack trace.</li>
+      <li><strong>Operator-shaped edge cases:</strong> the mass-matrix/<code>WOperator</code> bugs only show up for users who pass <code>SciMLOperators</code> types instead of plain matrices, so none of them had test coverage until the implicit multirate path started exercising them directly.</li>
+    </ul>
+
+    <h2>Goals for the next two weeks</h2>
+    <ul>
+      <li>Push the implicit MRI-GARK order ladder past order 3, mirroring the explicit family's progression.</li>
+      <li>Continue sweeping for remaining <code>AbstractSciMLOperator</code> gaps in the implicit path now that the pattern is known.</li>
+      <li>Write convergence and zero-allocation benchmarks specifically for the solve-decoupled implicit multirate methods.</li>
+      <li>Start drafting the midterm-to-final writeup of the multirate deliverable.</li>
+    </ul>
+
+    <h2>The fortnight at a glance</h2>
+    <div class="timeline-wrap">
+      <div class="timeline">
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jul 2</p><h4>First implicit multirate solver</h4><p>MRIGARKIRK21a lands — solve-decoupled, order 2 (#3811). Extrapolation error-estimate fix also lands (#3756).</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jul 6</p><h4>Stiff-slow-stable implicit multirate + plumbing sweep</h4><p>MRIGARKESDIRK34a (#3812), NLNewton/build_J_W operator fixes (#3796, #3824), preconditioner weight fix (#3795), new SDIRK scheme (#3827), compat bump (#3828).</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jul 12</p><h4>Mass-matrix operator fix</h4><p>get_differential_vars accepts IdentityOperator/ScalarOperator (#3837).</p></div></div>
+      </div>
+    </div>
+
+    <h2>Closing thoughts</h2>
+    <p>Landing <code>MRIGARKIRK21a</code> and <code>MRIGARKESDIRK34a</code> is the deliverable I've been building toward since Weeks 3–4 — explicit multirate was the easier half, and implicit is where the project's actual difficulty lives. The mass-matrix and <code>WOperator</code> fixes weren't part of the original plan, but they're the kind of bugs that only surface once you push a new code path hard enough to hit its edges, and each one makes the implicit multirate machinery a bit more solid.</p>
+
+  </div>
+</article>
+
+<footer class="footer"><div class="container"><p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p></div></footer>
+<script src="../js/main.js?v=6"></script>
+</body>
+</html>
