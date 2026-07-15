@@ -7,6 +7,24 @@
 
 window.POSTS = [
   {
+    slug: 'coding-weeks-7-8',
+    title: 'GSoC Weeks 7–8: The First Implicit Multirate Solvers',
+    excerpt: 'Landing the first solve-decoupled implicit MRI-GARK methods (IRK21a, ESDIRK34a), fixing mass-matrix/WOperator plumbing gaps, adding a new SDIRK scheme, and correcting an extrapolation error estimate.',
+    date: '2026-07-12',
+    readTime: '8 min read',
+    category: 'gsoc',
+    categoryLabel: 'GSoC',
+  },
+  {
+    slug: 'coding-weeks-5-6',
+    title: 'GSoC Weeks 5–6: Closing the Explicit Multirate Ladder & Hardening NonlinearSolveAlg',
+    excerpt: 'Completing the explicit MRI-GARK order ladder (2 → 4), adding the MSRK10 order-10 tableau, and hardening NonlinearSolveAlg’s cache/resize/W-reuse machinery ahead of implicit multirate solvers.',
+    date: '2026-06-27',
+    readTime: '7 min read',
+    category: 'gsoc',
+    categoryLabel: 'GSoC',
+  },
+  {
     slug: 'coding-weeks-3-4',
     title: 'GSoC Weeks 3–4: IMEX-RK Methods & the First Multirate Solvers',
     excerpt: 'Completing the IMEX-RK family (IMEX-SSP, BHR) on the generic stepper, then landing the first multirate solvers — MRAB, MIS2, and the first MRI-GARK methods.',

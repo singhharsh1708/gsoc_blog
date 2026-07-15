@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GSoC 2026 Weeks 5–6 — Closing the Explicit Multirate Ladder & Hardening NonlinearSolveAlg | Harsh Singh</title>
+  <meta name="description" content="GSoC 2026 coding-phase update with SciML — landing MRI-GARK-ERK33a/ERK45a to complete the explicit multirate family, adding the MSRK10 order-10 tableau, and starting the NonlinearSolveAlg cache/W-reuse hardening that implicit multirate needs.">
+  <meta property="og:title" content="GSoC 2026 Weeks 5–6 — Closing the Explicit Multirate Ladder & Hardening NonlinearSolveAlg">
+  <meta property="og:description" content="Completing the explicit MRI-GARK order ladder, landing MSRK10, and hardening NonlinearSolveAlg's cache/resize/W-reuse machinery ahead of implicit multirate solvers.">
+  <link rel="stylesheet" href="../css/style.css?v=7">
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav class="navbar" id="navbar"><div class="container"><a href="../index.html" class="nav-logo">singhharsh.in</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"><svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button></li></ul><div class="mobile-actions"><button class="theme-toggle" id="theme-toggle-mobile" aria-label="Toggle theme"><svg id="theme-icon-mobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button><button class="mobile-toggle" id="mobile-toggle" aria-label="Open menu"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button></div></div></nav>
+<div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
+
+<article class="blog-post">
+  <div class="blog-post-header">
+    <a href="../index.html#blog" class="blog-post-back">← Back to Blog</a>
+    <h1>GSoC 2026 Weeks 5–6 — Closing the Explicit Multirate Ladder & Hardening NonlinearSolveAlg</h1>
+    <div class="blog-post-meta">
+      <span>June 27, 2026</span><span>7 min read</span><span class="blog-category">GSoC</span>
+    </div>
+  </div>
+
+  <div class="blog-post-content">
+    <p class="lead">The last cycle closed with two explicit MRI-GARK methods still open for review. This fortnight finished that ladder, picked up an order-10 tableau as a side quest, and — more consequentially — started tearing into <code>NonlinearSolveAlg</code>'s cache and W-reuse machinery, which turned out to be the real prerequisite for the <a href="coding-weeks-7-8.html">implicit multirate solvers</a> coming next.</p>
+
+    <h2>Completing the explicit MRI-GARK family</h2>
+    <p>The two PRs left in flight from last cycle both landed, taking the family from order 2 to order 4 on one unified formulation.</p>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3747" target="_blank"><strong>#3747:</strong></a> Added <code>MRI-GARK-ERK33a</code> (order 3, Sandu 2019) and re-expressed <code>ERK22a</code>/<code>ERK22b</code> onto the same formulation — one <code>perform_step!</code> now handles the whole family via per-stage sub-interval integration with τ-dependent coupling <code>ω = W0 + W1·τ</code>.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3751" target="_blank"><strong>#3751:</strong></a> Added the 4th-order explicit <code>MRI-GARK-ERK45a</code>, closing the explicit order ladder at 2 → 3 → 4.</li>
+    </ul>
+
+    <figure class="code-figure">
+      <div class="code-figure-head">
+        <span class="filename">mri_gark_tableaus.jl</span>
+        <span class="lang">Julia</span>
+      </div>
+<pre><code class="language-julia"># Unified MRI-GARK formulation: every explicit member — ERK22a/b,
+# ERK33a, ERK45a — now runs through the same perform_step!, differing
+# only in the (W0, W1, c) tableau data.
+MRIGARKERK22a()   # order 2
+MRIGARKERK22b()   # order 2
+MRIGARKERK33a()   # order 3
+MRIGARKERK45a()   # order 4</code></pre>
+      <figcaption><span class="fig-num">Fig 1.</span> One stepper, four orders — the unification #3747 bought.</figcaption>
+    </figure>
+
+    <h2>A side quest: MSRK10</h2>
+    <p>Between multirate PRs I picked up a standing issue from the tableau backlog:</p>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3755" target="_blank"><strong>#3755:</strong></a> Added <code>MSRK10</code>, Misha Stepanov's explicit 15-stage order-10 Runge-Kutta method (arXiv:2504.17329), as an <code>ExplicitRK</code> tableau alongside <code>Ono10</code>, <code>Curtis10</code>, and <code>Feagin10</code>. The embedded order-8 estimator makes it a (10,8) adaptive pair, and a <code>BigFloat</code> convergence test mirrors the existing order-10 coverage.</li>
+    </ul>
+    <p>Small in scope, but useful as a reset between the heavier multirate and nonlinear-solve work.</p>
+
+    <h2>Hardening NonlinearSolveAlg</h2>
+    <p>The implicit MRI-GARK methods planned for next cycle solve a nonlinear system at every slow stage via <code>NonlinearSolveAlg</code>. Before adding them, several latent bugs in that path needed fixing — problems that explicit multirate and the existing SDIRK/FBDF steppers never exercised because they don't resize or reuse the nonlinear cache the way a solve-decoupled implicit multirate stepper does.</p>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3753" target="_blank"><strong>#3753:</strong></a> Extended W-reuse to <code>WOperator</code>s built around a <em>concrete</em> Jacobian — the common setup when a user picks an iterative linsolve like <code>KrylovJL_GMRES</code> with <code>concrete_jac = true</code>. Previously <code>build_nlsolver</code> gated <code>use_w_reuse</code> on <code>W isa AbstractMatrix &amp;&amp; !(W isa AbstractSciMLOperator)</code>, which excluded <code>WOperator</code> outright even though its <code>_concrete_form</code> field already carries the materialized <code>M/γdt - J</code>.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3797" target="_blank"><strong>#3797:</strong></a> Hoisted a dead <code>linprob</code>/<code>linsolve</code> allocation out of the hot path in the <code>NLNewton</code> branch.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3794" target="_blank"><strong>#3794:</strong></a> Dropped a duplicate <code>nnonliniter</code> accumulation and guarded a resize firstcall write that was overwriting state it shouldn't touch.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3799" target="_blank"><strong>#3799:</strong></a> Defined <code>Base.resize!</code> for <code>NonlinearSolveCache</code> and guarded the firstcall write. <code>resize!(integrator, N)</code> on an integrator using <code>NonlinearSolveAlg</code> was breaking two different ways: the resize call fell through to an undefined default, and <code>resize_nlsolver!</code> was unconditionally setting a <code>firstcall</code> field that <code>NonlinearSolveCache</code> doesn't even have.</li>
+    </ul>
+
+    <aside class="callout debug">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M19 7l-3 2M5 7l3 2M19 17l-3-2M5 17l3-2M12 2v4M3 13h3M18 13h3"/></svg></span>
+      <div class="callout-body">
+        <span class="callout-title">Why this mattered more than it looked</span>
+        <p>None of these bugs were visible from the outside — SDIRK and FBDF never resize the nonlinear cache mid-solve, so <code>NonlinearSolveCache</code>'s missing <code>resize!</code> and phantom <code>firstcall</code> field had simply never been exercised. Solve-decoupled implicit multirate methods resize constantly as the fast/slow step sizes adapt independently, so every one of these had to be fixed before <a href="coding-weeks-7-8.html">#3811</a> could even run.</p>
+      </div>
+    </aside>
+
+    <h2>Closing out the cycle</h2>
+    <p>The last few days of the fortnight rounded out test coverage and CI hygiene for the changes above:</p>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3804" target="_blank"><strong>#3804:</strong></a> Extended <code>ode_cache_tests</code> to cover <code>KenCarp4</code> and <code>ImplicitEuler</code> with <code>NonlinearSolveAlg</code>.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3805" target="_blank"><strong>#3805:</strong></a> Added <code>u</code>/<code>uprev</code> fields to <code>QNDFCache</code> so <code>resize!</code> propagates correctly to <code>integrator.u</code>/<code>uprev</code> — a related resize gap found while chasing the <code>NonlinearSolveAlg</code> bugs.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3808" target="_blank"><strong>#3808:</strong></a> Raised the downgrade-CI compat floors for <code>TruncatedStacktraces</code> and <code>RecursiveArrayTools</code> after the resize changes needed newer minimum versions.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3757" target="_blank"><strong>#3757:</strong></a> Documented <code>EulerHeun</code> as the two-stage Stratonovich Heun method.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3758" target="_blank"><strong>#3758:</strong></a> Fixed pre-existing <code>runic</code> formatting failures in <code>callbacks.jl</code> and the multi-VCC mask tests.</li>
+    </ul>
+
+    <h2>Challenges this cycle</h2>
+    <ul>
+      <li><strong>Invisible bugs:</strong> the <code>NonlinearSolveAlg</code> resize/W-reuse issues had no test coverage anywhere in the package because nothing previously exercised that code path — finding them meant reasoning from the implicit multirate design forward rather than from a failing test backward.</li>
+      <li><strong>Sequencing:</strong> landing the cache hardening before the implicit solvers themselves meant a fortnight with no new user-facing multirate method, even though it was the necessary foundation for two of them.</li>
+    </ul>
+
+    <h2>Goals for the next two weeks</h2>
+    <ul>
+      <li>Land the first implicit MRI-GARK method, <code>MRIGARKIRK21a</code>, now that the nonlinear-solve cache is solid.</li>
+      <li>Follow with a stiff-slow-subsystem variant, <code>MRIGARKESDIRK34a</code>, building on the same solve-decoupled machinery.</li>
+      <li>Keep chasing W-operator/mass-matrix plumbing gaps surfaced by the implicit path.</li>
+      <li>Fill in remaining SDIRK backlog items opportunistically between multirate PRs.</li>
+    </ul>
+
+    <h2>The fortnight at a glance</h2>
+    <div class="timeline-wrap">
+      <div class="timeline">
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jun 15</p><h4>EulerHeun documented</h4><p>Clarified as the two-stage Stratonovich Heun method (#3757).</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jun 23</p><h4>MSRK10 + Runic cleanup</h4><p>Order-10 tableau (#3755) and pre-existing formatting fixes (#3758).</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jun 29</p><h4>Explicit MRI-GARK ladder complete</h4><p>ERK33a + unification (#3747); NonlinearSolveAlg W-reuse and cache fixes land in a batch (#3753, #3794, #3797, #3799).</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jun 30</p><h4>Coverage + CI hygiene</h4><p>Cache tests for KenCarp4/ImplicitEuler (#3804), QNDFCache resize fix (#3805), downgrade-CI floors (#3808).</p></div></div>
+      </div>
+    </div>
+
+    <h2>Closing thoughts</h2>
+    <p>This fortnight had less to show in terms of new methods than the last one, but it's the kind of work that determines whether the next fortnight goes smoothly. Finding and fixing four separate <code>NonlinearSolveAlg</code> bugs before they could block the implicit multirate solvers was slower than just writing <code>MRIGARKIRK21a</code> and hitting the errors one at a time — but cheaper in the end. Onward to implicit multirate.</p>
+
+  </div>
+</article>
+
+<footer class="footer"><div class="container"><p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p></div></footer>
+<script src="../js/main.js?v=6"></script>
+</body>
+</html>
