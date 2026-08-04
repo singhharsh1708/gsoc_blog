@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GSoC 2026 Weeks 11–12 — Fixing It Upstream, and a Merge Wave | Harsh Singh</title>
+  <meta name="description" content="A mid-cycle GSoC 2026 update with SciML — fixing the polyalgorithm cache bug at the interface layer in NonlinearSolve.jl instead of working around it downstream, a separate SciMLOperators.jl fix for update_coefficients! on immutable operators, and a large batch of long-open OrdinaryDiffEq.jl PRs landing between July 31 and August 4.">
+  <meta property="og:title" content="GSoC 2026 Weeks 11–12 — Fixing It Upstream, and a Merge Wave">
+  <meta property="og:description" content="The polyalgorithm fix landed at the interface rather than downstream, and a batch of long-open PRs merged all at once — written mid-cycle, with the fortnight still open.">
+  <link rel="stylesheet" href="../css/style.css?v=7">
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav class="navbar" id="navbar"><div class="container"><a href="../index.html" class="nav-logo">singhharsh.in</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"><svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button></li></ul><div class="mobile-actions"><button class="theme-toggle" id="theme-toggle-mobile" aria-label="Toggle theme"><svg id="theme-icon-mobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button><button class="mobile-toggle" id="mobile-toggle" aria-label="Open menu"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button></div></div></nav>
+<div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
+
+<article class="blog-post">
+  <div class="blog-post-header">
+    <a href="../index.html#blog" class="blog-post-back">← Back to Blog</a>
+    <h1>GSoC 2026 Weeks 11–12 — Fixing It Upstream, and a Merge Wave</h1>
+    <div class="blog-post-meta">
+      <span>August 4, 2026</span><span>15 min read</span><span class="blog-category">GSoC</span>
+    </div>
+  </div>
+
+  <div class="blog-post-content">
+    <p class="lead">A note first: <strong>this cycle isn't over.</strong> I'm writing on August 4, before the fortnight closes, so this is a mid-cycle update rather than a finished retrospective. Two things define it so far: the fix for the bug I spent most of <a href="coding-weeks-9-10.html">Weeks 9–10</a> chasing went <em>upstream</em>, into NonlinearSolve.jl, rather than being worked around locally — alongside a second, unrelated upstream fix in SciMLOperators.jl — and a batch of long-open pull requests landed all at once between July 31 and August 4.</p>
+
+    <h2>Fixing it at the interface, not around it</h2>
+    <p>Last cycle I said the polyalgorithm fix belonged upstream rather than in a special case inside OrdinaryDiffEq. The upstream half merged on July 31:</p>
+    <ul>
+      <li><a href="https://github.com/SciML/NonlinearSolve.jl/pull/1115" target="_blank"><strong>NonlinearSolve.jl #1115:</strong></a> Reset <code>force_stop</code>/<code>retcode</code> in the polyalgorithm <code>reinit!</code>, plus <code>get_u</code>/<code>get_fu</code> accessors. <code>InternalAPI.reinit!(::NonlinearSolvePolyAlgorithmCache)</code> reset <code>current</code>, <code>nsteps</code>, <code>stats</code> and <code>total_time</code> but left <code>force_stop</code> and <code>retcode</code> at their converged values, and <code>CommonSolve.step!</code> guards on <code>force_stop</code> — <code>not_terminated(cache) = !cache.force_stop &amp;&amp; cache.nsteps &lt; cache.maxiters</code> — reading it off the <em>polyalgorithm</em> cache. The <code>@generated</code> <code>solve!</code> method drives the subcaches directly and is unaffected, so this only bites a <code>step!</code>-driven loop — which is exactly how an implicit ODE solver runs a nonlinear solve across a step. Released as <strong>NonlinearSolveBase 2.39.0</strong>.</li>
+    </ul>
+
+    <figure class="code-figure">
+      <div class="code-figure-head">
+        <span class="filename">polyalg_reinit_noop.jl</span>
+        <span class="lang">Julia</span>
+      </div>
+<pre><code class="language-julia"># A polyalgorithm cache driven one `step!` at a time — the pattern an
+# implicit ODE/DAE solver uses to run a nonlinear solve across a step.
+cache = init(NonlinearProblem(f, u0, p), RobustMultiNewton())
+drive!(c) = while NonlinearSolveBase.not_terminated(c); step!(c); end
+
+drive!(cache)                      # a branch converges → force_stop = true
+SciMLBase.reinit!(cache, u_new; p = p_new)
+                                   # resets current, nsteps, stats,
+                                   # total_time — but not force_stop
+drive!(cache)                      # not_terminated(cache) =
+                                   #   !cache.force_stop &amp;&amp; cache.nsteps &lt; cache.maxiters
+                                   # is already false → no step! ever runs,
+                                   # and the stale iterate is reused</code></pre>
+      <figcaption><span class="fig-num">Fig 1.</span> Reproducible without any downstream package — a bare polyalgorithm cache, warm-started and stepped.</figcaption>
+    </figure>
+
+    <p>With 2.39.0 out, <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3959" target="_blank"><strong>#3959</strong></a> — the OrdinaryDiffEq half, promised last cycle as consumer-side-only — merged on August 1 with the compat floor raised to <code>"2.39"</code>. The five polyalgorithm-unsafe inner-cache reads it had to route through the upstream accessors were the resize length check, the stale-<code>W</code> rhs rescale from #4028, both <code>compute_step!</code> paths, and the nlstep <code>build_solution</code>. <strong>No local workaround remains.</strong></p>
+
+    <p>A second upstream fix landed the same day, in a different repository and for a different bug:</p>
+    <ul>
+      <li><a href="https://github.com/SciML/SciMLOperators.jl/pull/416" target="_blank"><strong>SciMLOperators.jl #416:</strong></a> Fixed <code>update_coefficients!</code> for operators built with only an out-of-place <code>update_func</code>. <code>MatrixOperator</code> is immutable, but the in-place path assigned <code>L.A = L.update_func(...)</code>, so every call threw <code>setfield!: immutable struct of type MatrixOperator cannot be changed</code>. Issue #409 named only <code>MatrixOperator</code>; the same pattern sat unreported a second time in <code>BatchedDiagonalOperator</code>, where <code>DiagonalOperator(u::AbstractMatrix; update_func = ...)</code> crashed identically. The PR fixes both, computing the new value out-of-place and <code>copyto!</code>-ing it into existing storage when that storage is mutable.</li>
+    </ul>
+
+    <aside class="callout abstraction">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg></span>
+      <div class="callout-body">
+        <span class="callout-title">The stack trace is not the owner</span>
+        <p>The error surfaced in OrdinaryDiffEq but the invariant lived in NonlinearSolve. The layer a failure shows up in is rarely the layer that owns the rule being broken. Fixing upstream is slower — you wait on someone else's review and release — but the alternative is a workaround that quietly becomes your package's problem forever, and that every other consumer rediscovers for themselves.</p>
+      </div>
+    </aside>
+
+    <h2>The merge wave</h2>
+    <p>Most of the wave appeared here already — <a href="coding-weeks-9-10.html">Weeks 9–10</a> covered the order-4 multirate method, the NonlinearSolveAlg cluster, the mass-matrix chain and the ExplicitTaylor FSAL fix, all of which merged across July 31, August 1, August 3 and August 4. Four PRs in it have never appeared in this devlog, and all four had been open well before this cycle started.</p>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3241" target="_blank"><strong>#3241:</strong></a> Sixteen ES-DG-optimized 3S* low-storage Runge-Kutta methods from Al Jahdali et al. (2022) — eight advection-optimized (<code>AlJahdaliAdv3S*</code>), eight vortex-optimized (<code>AlJahdaliVor3S*</code>), orders 2 through 5, fixed timestep only as in the paper. Merged July 31, closing issue #2903.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3683" target="_blank"><strong>#3683:</strong></a> Folded <code>RK46NL</code> into the generic <code>LowStorageRK2N</code> dispatch. Master's consolidation had given nine 2N methods a shared <code>LowStorageRK2NAlgorithm</code> union and <code>alg_cache</code>; <code>RK46NL</code> was the one plain-2N method left out, still carrying bespoke caches and four hand-unrolled <code>initialize!</code>/<code>perform_step!</code> methods. Merged August 1.</li>
+    </ul>
+    <p>Neither adds new stepping code. #3241 is pure coefficient data, running through the existing <code>LowStorageRK3SAlgorithm</code> union and <code>_lowstorage_3s_tableau</code> dispatch exactly like the ParsaniKetcheson family, so what needed proving was that the numbers were right: the tableaus were reconstructed in <code>BigFloat</code> and checked against the rooted-tree order conditions directly, all satisfied at the claimed order and the order-(p+1) conditions properly violated. #3683 has one consequence worth stating plainly rather than burying — <code>williamson_condition</code> is now the struct's fourth field, so positional construction takes four arguments and <code>RK46NL(stage_limiter!, step_limiter!, thread)</code> no longer resolves.</p>
+
+    <aside class="callout perf">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+      <div class="callout-body">
+        <span class="callout-title">The real win was what didn't get written</span>
+        <p>A late rework of #3241 folded its hand-written per-method <code>alg_cache</code> definitions into the shared dispatch, taking <strong>705 lines</strong> back off the branch, with end states bit-identical before and after for all sixteen methods, in-place and out-of-place. #3683 removes a net <strong>134 lines of source</strong>. Sixteen new methods and a migration, and not one new <code>perform_step!</code> between them — code that doesn't exist can't drift out of sync with the family it belongs to.</p>
+      </div>
+    </aside>
+
+    <p>The other two are stochastic-solver fixes, and they are the layering story told from the other end: in both, an object constructed one layer down arrives at the solver in a shape the solver never thinks to check. #3468 gets a noise process whose <code>rng</code> lives behind a wrapper; #3763 gets an increment prototype whose sparsity was inherited from a matrix that means something else entirely. Both merged August 1:</p>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3468" target="_blank"><strong>#3468:</strong></a> Fixed SROCK2 with <code>NoiseWrapper</code> and with non-square noise, closing issues #3188 and #3170. Single-channel non-square noise was routed into the diagonal code paths by <code>length(W.dW) == 1</code> shortcuts — a <code>MethodError</code> out of place, a <code>DimensionMismatch</code> in place, across <code>SROCK2</code>, <code>SROCKEM</code>, <code>SROCKC2</code>, <code>KomBurSROCK2</code> and <code>TangXiaoSROCK2</code>. Separately the <code>NoiseWrapper</code> case died with <code>FieldError: type NoiseWrapper has no field rng</code>, because the χ draw read <code>W.rng</code> directly; an <code>rng(W)</code> helper now walks to the wrapped source, recurses through nested wrappers, and falls back to the global generator for processes that replay a recorded path and have none — which also un-breaks SROCK2 with <code>NoiseGrid</code>. The eq. (17) cross terms went in too.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3763" target="_blank"><strong>#3763:</strong></a> Made <code>rand_prototype</code> dense when the <code>noise_rate_prototype</code> is sparse. <code>_sde_init</code> built the Wiener increment prototype as <code>false .* noise_rate_prototype[1, :]</code>, a <code>SparseVector</code> — the wrong shape for the object, since the sparsity pattern of <code>g</code> records <em>which states a channel drives</em>, not which channels are idle, so every column still draws an increment and <code>dW</code> fills in completely on the first step anyway. That prototype breaks two solvers two ways. <code>W2Ito1</code> fails outright — its cache keeps <code>_dW</code>, <code>_dZ</code> and <code>chi1</code> under one <code>randType</code> field and builds <code>_dZ = zeros(eltype(ΔW), 2)</code> unconditionally, so with a sparse <code>dW</code> there is no applicable constructor. <code>RKMilGeneral</code> fails <em>silently</em>, deriving its Lévy area <code>dZ</code> from the increment prototype.</li>
+    </ul>
+
+    <aside class="callout debug">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M19 7l-3 2M5 7l3 2M19 17l-3-2M5 17l3-2M12 2v4M3 13h3M18 13h3"/></svg></span>
+      <div class="callout-body">
+        <span class="callout-title">The questions I hadn't asked</span>
+        <p>On #3468 my mentor pushed on the questions I had not asked myself — whether the algorithm is even correct for non-diagonal noise, whether it needs Lévy areas, and whether the paper claims weak order 2 in that setting. Answering all three out of Abdulle et al. was a real part of the work on that PR, and more of it than the <code>rng</code> helper that the issue report actually pointed at.</p>
+      </div>
+    </aside>
+
+    <h2>The same bug, one sublibrary over</h2>
+    <p>And then, today:</p>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4112" target="_blank"><strong>#4112:</strong></a> Fix <code>NewmarkBeta</code> crashing with polyalgorithm nonlinear solvers — opened August 4, still open as I write. <code>nlsolve</code> is a public keyword on both <code>NewmarkBeta</code> and <code>GeneralizedAlpha</code>; the default <code>NewtonRaphson</code> works, as does any algorithm whose cache steps in place. Everything else crashed on the first step, with <code>type NonlinearSolvePolyAlgorithmCache has no field p</code> or <code>type NonlinearSolveNoInitCache has no field p</code>.</li>
+    </ul>
+    <p>That is the <em>same bug class</em> as #3859, which #3959 fixed for <code>NonlinearSolveAlg</code>, showing up in a different sublibrary. The mechanism is familiar: the integrator cache was using the inner nonlinear cache as its own storage, building a fresh <code>NewmarkDiscretizationCache</code> each step and recovering its three <code>DiffCache</code> AD buffers by reaching into <code>nlcache.p</code> — and a cache that keeps its parameter object somewhere other than a field called <code>p</code> has nothing to reach into. The discretization state now lives on the integrator cache and is refreshed in place per step. That alone isn't sufficient either: <code>NonlinearSolveBase</code>'s <code>@generated</code> <code>solve!</code> specialization for <code>NonlinearSolvePolyAlgorithmCache</code> never writes the parent's <code>retcode</code> back, so it stays at <code>ReturnCode.Default</code> and a caller driving the cache through <code>solve!</code> has to read the returned solution instead of the cache. Hitting the same cache assumption in a second sublibrary is a fair sign it was systemic rather than local.</p>
+
+    <h2>Challenges this cycle</h2>
+    <ul>
+      <li><strong>A moving target under review:</strong> master restructured the low-storage family while #3241 sat in the queue, so the PR needed a late rework to consolidate its per-method <code>alg_cache</code> definitions into the shared dispatch — and then a demonstration that the consolidated version was bit-identical to what it replaced, for all sixteen methods, before it could land.</li>
+      <li><strong>Bugs that don't stay fixed in one place:</strong> #4112 turned up on the day I would otherwise have called the polyalgorithm problem closed.</li>
+    </ul>
+
+    <h2>Goals for the next two weeks</h2>
+    <ul>
+      <li>Land <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4112" target="_blank"><strong>#4112</strong></a>, whose second half works around that missing <code>retcode</code> write-back on the caller side.</li>
+      <li>Get <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3798" target="_blank"><strong>#3798</strong></a> — out-of-place <code>NonlinearSolveAlg</code> W-reuse with SimpleNonlinearSolve solvers — over the line; open since June 29, now the oldest thing on my list.</li>
+      <li>Wrap up the multirate deliverable — both the explicit and implicit MRI-GARK ladders are complete, so what is left is writing it up rather than adding methods.</li>
+      <li>Write the final GSoC report.</li>
+    </ul>
+
+    <h2>The cycle so far</h2>
+    <div class="timeline-wrap">
+      <div class="timeline">
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Late July</p><h4>Upstream fixes in review</h4><p>NonlinearSolve.jl #1115 (polyalg reinit! + get_u/get_fu), opened at the tail of the last cycle, and SciMLOperators.jl #416 (update_coefficients! on immutable operators) both sit in review.</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jul 31</p><h4>Upstream lands, and the wave starts</h4><p>#1115 and #416 merge; NonlinearSolveBase 2.39.0 ships. In OrdinaryDiffEq, #3241 (16 ES-DG 3S* methods), #3886 and #3893 land the same day.</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Aug 1</p><h4>Six PRs in one day</h4><p>#3959 (now a pure consumer-side change), #3683 (RK46NL folded into LowStorageRK2N), #3468 and #3763 (SROCK2 and sparse noise), plus #3923 and #3944.</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Aug 3–4</p><h4>Tail of the wave, and a new find</h4><p>#3975 merges Aug 3, #3916 merges Aug 4 — and #4112 opens the same day, the polyalgorithm bug class resurfacing in NewmarkBeta/GeneralizedAlpha.</p></div></div>
+        <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Still open</p><h4>Still to come</h4><p>The rest of this cycle: #4112 and #3798 to land, the multirate write-up, and the final report. Not written yet.</p></div></div>
+      </div>
+    </div>
+
+    <h2>Closing thoughts</h2>
+    <p>Since this is a mid-cycle post, I'll resist drawing a conclusion the cycle hasn't earned — #4112 is still open. What I can say already is that most of the effort went into deciding <em>where</em> a fix belonged rather than what it should say. Working around a broken invariant downstream is the faster path on the day, and also how a package accumulates defensive code nobody can later explain. The merge wave made a quieter point — #3683 removed more source than it added, #3241's late rework deleted 705 lines of duplication from its own branch, and sixteen new methods arrived without a single new <code>perform_step!</code>. The work I'd point at from this cycle is the part where the abstraction was already right and the job was making the code admit it.</p>
+
+  </div>
+</article>
+
+<footer class="footer"><div class="container"><p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p></div></footer>
+<script src="../js/main.js?v=6"></script>
+</body>
+</html>

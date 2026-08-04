@@ -7,6 +7,24 @@
 
 window.POSTS = [
   {
+    slug: 'coding-weeks-11-12',
+    title: 'GSoC Weeks 11–12: Fixing It Upstream, and a Merge Wave',
+    excerpt: 'A mid-cycle update — the polyalgorithm fix lands upstream in NonlinearSolve.jl and SciMLOperators.jl, a batch of long-open PRs merges at once, and the same cache bug resurfaces one sublibrary over.',
+    date: '2026-08-04',
+    readTime: '15 min read',
+    category: 'gsoc',
+    categoryLabel: 'GSoC',
+  },
+  {
+    slug: 'coding-weeks-9-10',
+    title: 'GSoC Weeks 9–10: Completing the Implicit Multirate Family & a Wrong-Answer Bug Hunt',
+    excerpt: 'The order-4 method that completes the implicit MRI-GARK family exposes an ignored tableau embedding — then a cycle spent hunting bugs that never crash, and quietly return the wrong answer instead.',
+    date: '2026-07-26',
+    readTime: '18 min read',
+    category: 'gsoc',
+    categoryLabel: 'GSoC',
+  },
+  {
     slug: 'coding-weeks-7-8',
     title: 'GSoC Weeks 7–8: The First Implicit Multirate Solvers',
     excerpt: 'Landing the first solve-decoupled implicit MRI-GARK methods (IRK21a, ESDIRK34a), fixing mass-matrix/WOperator plumbing gaps, adding a new SDIRK scheme, and correcting an extrapolation error estimate.',

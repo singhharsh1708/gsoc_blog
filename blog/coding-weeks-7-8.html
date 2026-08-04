@@ -102,7 +102,7 @@ sol = solve(prob, MRIGARKESDIRK34a(fast_method))    # order 3, stiff-slow-stable
     </div>
 
     <h2>Closing thoughts</h2>
-    <p>Landing <code>MRIGARKIRK21a</code> and <code>MRIGARKESDIRK34a</code> is the deliverable I've been building toward since Weeks 3–4 — explicit multirate was the easier half, and implicit is where the project's actual difficulty lives. The mass-matrix and <code>WOperator</code> fixes weren't part of the original plan, but they're the kind of bugs that only surface once you push a new code path hard enough to hit its edges, and each one makes the implicit multirate machinery a bit more solid.</p>
+    <p>Landing <code>MRIGARKIRK21a</code> and <code>MRIGARKESDIRK34a</code> is the deliverable I've been building toward since Weeks 3–4 — explicit multirate was the easier half, and implicit is where the project's actual difficulty lives. The mass-matrix and <code>WOperator</code> fixes weren't part of the original plan, but they're the kind of bugs that only surface once you push a new code path hard enough to hit its edges, and each one makes the implicit multirate machinery a bit more solid. Continued in <a href="coding-weeks-9-10.html">Weeks 9–10</a>.</p>
 
   </div>
 </article>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GSoC 2026 Weeks 9–10 — Completing the Implicit Multirate Family & a Wrong-Answer Bug Hunt | Harsh Singh</title>
+  <meta name="description" content="GSoC 2026 coding-phase update with SciML — MRI-GARK-ESDIRK46a rounds out the implicit multirate family and exposes an ignored tableau embedding, followed by a cluster of silent wrong-answer bugs in NonlinearSolveAlg, more operator mass-matrix fixes, and an ExplicitTaylor FSAL aliasing find in OrdinaryDiffEq.jl.">
+  <meta property="og:title" content="GSoC 2026 Weeks 9–10 — Completing the Implicit Multirate Family & a Wrong-Answer Bug Hunt">
+  <meta property="og:description" content="The order-4 implicit MRI-GARK method that finishes the family is up for review — and writing it uncovered an error estimator that was identically zero. Then a fortnight of bugs that return the wrong answer instead of crashing.">
+  <link rel="stylesheet" href="../css/style.css?v=7">
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav class="navbar" id="navbar"><div class="container"><a href="../index.html" class="nav-logo">singhharsh.in</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"><svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button></li></ul><div class="mobile-actions"><button class="theme-toggle" id="theme-toggle-mobile" aria-label="Toggle theme"><svg id="theme-icon-mobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button><button class="mobile-toggle" id="mobile-toggle" aria-label="Open menu"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button></div></div></nav>
+<div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
+
+<article class="blog-post">
+  <div class="blog-post-header">
+    <a href="../index.html#blog" class="blog-post-back">← Back to Blog</a>
+    <h1>GSoC 2026 Weeks 9–10 — Completing the Implicit Multirate Family & a Wrong-Answer Bug Hunt</h1>
+    <div class="blog-post-meta">
+      <span>July 26, 2026</span><span>18 min read</span><span class="blog-category">GSoC</span>
+    </div>
+  </div>
+
+  <div class="blog-post-content">
+    <p class="lead"><a href="coding-weeks-7-8.html">Last cycle</a> ended with two implicit MRI-GARK methods in the package and a promise to push the order ladder higher. The fourth-order member that completes the family went up the evening before this fortnight began and spent the whole of it in review — and writing it was what exposed the fact that the machinery the two previous methods were sitting on had been ignoring the tableau embedding entirely. That set the tone for the rest of the cycle, which turned into a hunt for bugs that don't crash. They return the wrong answer, confidently, with <code>ReturnCode.Success</code> attached.</p>
+
+    <h2>Completing the implicit MRI-GARK family</h2>
+    <p>With #3886 in review, the implicit order ladder is written up to 2 → 3 → 4, matching the explicit family I closed out in <a href="coding-weeks-5-6.html">Weeks 5–6</a>; it lands when the PR does.</p>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3886" target="_blank"><strong>#3886:</strong></a> Adds <code>MRI-GARK-ESDIRK46a</code> (Sandu 2019, order 4), completing the implicit MRI-GARK family alongside <code>IRK21a</code> (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3811" target="_blank">#3811</a>) and <code>ESDIRK34a</code> (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3812" target="_blank">#3812</a>), and marked as closing the long-standing issue <strong>#961</strong>. It also replaces the repeated <code>Union{MRIGARKIRK21a, MRIGARKESDIRK34a}</code> spellings with the <code>MRIGARKImplicitAlg</code> alias that already existed for exactly this purpose. Validation was more involved than the coefficients suggest: fourth-order convergence in-place and out-of-place, the embedded error estimator checked across tolerances, the existing <code>IRK21a</code>/<code>ESDIRK34a</code> orders confirmed unchanged, and the multirate suite at 99/99.</li>
+    </ul>
+
+    <aside class="callout abstraction">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg></span>
+      <div class="callout-body">
+        <span class="callout-title">The new method that found the old bug</span>
+        <p>The implicit MRI-GARK path never used the tableau embedding. It always estimated the local error as <code>u - z[s]</code>, the difference between the step result and the last stage value. For <code>ESDIRK46a</code>, which is <em>stiffly accurate</em>, those two quantities are the same thing — so the error estimate came out identically zero and the controller accepted <strong>every single step</strong> regardless of what the solution was doing. The fix uses the embedding row when the tableau has one, matching the explicit implementation, and preserves the old behaviour for methods without an embedding.</p>
+      </div>
+    </aside>
+
+    <h2>A cluster of wrong-answer bugs in NonlinearSolveAlg</h2>
+    <p>With the multirate work handed off to review, most of the rest of the fortnight went into <code>NonlinearSolveAlg</code> — the layer that lets an implicit ODE solver delegate its stage solve to any algorithm from <code>NonlinearSolve.jl</code>. Two of the three bugs I found there share an uncomfortable property: nothing throws, nothing warns, and the solve reports success. The third crashes outright — but only for a class of inner solver nobody had pointed at this path before.</p>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3893" target="_blank"><strong>#3893:</strong></a> Gates first-iteration convergence on the inner solver's state, fixing issue #3817. A globalized solver like <code>TrustRegion</code> can <em>reject</em> its trial step: <code>step!</code> returns with the iterate unmoved and the cache not terminated, having only shrunk its trust region. The outer Newton loop measures displacement, so that reads as <code>ndz == 0</code> — which both convergence tests call a perfect solve, and the stage is accepted with no correction applied. On fixed-<code>dt</code> FBDF + <code>TrustRegion</code> against Robertson, master returned <code>Success</code> with the state <strong>frozen at <code>u0</code></strong>.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3900" target="_blank"><strong>#3900:</strong></a> <em>(closed, not merged)</em> Under W-reuse, #3885 handed the reused ODE <code>W</code> to the inner <code>NonlinearFunction</code> as <code>jac_prototype = MatrixOperator(W)</code> with no <code>jac</code>, making the inner Jacobian an operator. <code>NewtonRaphson</code> only ever needs <code>J \ f</code>, which an operator supplies happily. <code>TrustRegion</code> builds its step from a <em>concrete</em> Jacobian, so given an operator it works from a model that doesn't match the residual, mismanages the trust radius, and converges to the wrong answer while the outer solve sees a small displacement and accepts the stage — reproduced with FBDF on Robertson with an analytic <code>jac</code>. The PR was closed rather than merged; the diagnosis is the part worth keeping.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3959" target="_blank"><strong>#3959:</strong></a> Fixes <code>NonlinearSolveAlg</code> crashing and stalling with polyalgorithm inner solvers, addressing the <code>FieldError</code> in issue #3859. <code>NonlinearSolvePolyAlgorithmCache</code> — what <code>RobustMultiNewton</code> and <code>FastShortcutNonlinearPolyalg</code> hand back — keeps <code>u</code> and <code>fu</code> on its <em>active subcache</em>, not at top level, so every raw <code>cache.cache.u</code>-style read in <code>newton.jl</code> threw the moment a polyalgorithm was used as the inner solver. Its <code>reinit!</code> also left <code>force_stop</code> and <code>retcode</code> at their converged values, so a <code>step!</code>-driven loop silently no-ops forever after and reuses a stale iterate.</li>
+    </ul>
+
+    <figure class="code-figure">
+      <div class="code-figure-head">
+        <span class="filename">newton.jl</span>
+        <span class="lang">Julia</span>
+      </div>
+<pre><code class="language-julia"># A rejected trust-region step leaves the iterate unmoved but the cache
+# still running — termination, not displacement, says we're at a root.
+_rejected_trial_step(nlsolver, ndz) = iszero(ndz) &amp;&amp;
+    NonlinearSolveBase.not_terminated(nlsolver.cache.cache)</code></pre>
+      <figcaption><span class="fig-num">Fig 1.</span> The discriminator added by #3893, defined only for <code>NLSolver{&lt;:NonlinearSolveAlg}</code>.</figcaption>
+    </figure>
+
+    <p>When that predicate fires, <code>nlsolve!</code> skips convergence and divergence bookkeeping for the iteration — a zero <code>ndz</code> would also poison the next iteration's <code>theta</code> — and lets the inner solver retry with its shrunken region. If the iterate never moves, the loop exhausts and the step is rejected as unconverged, which is what should have happened all along.</p>
+
+    <aside class="callout debug">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M19 7l-3 2M5 7l3 2M19 17l-3-2M5 17l3-2M12 2v4M3 13h3M18 13h3"/></svg></span>
+      <div class="callout-body">
+        <span class="callout-title">Why a wrong answer is worse than a crash</span>
+        <p>A <code>MethodError</code> is a gift: it names a file, a line, and a type, and nobody ships a paper on the back of it. #3893 and #3900 give you the opposite — a number of the right shape and magnitude, with a <code>Success</code> retcode, that is simply not the solution to the problem you posed. Neither had a failing test to work backwards from, because from the test suite's point of view nothing was failing. Both had to be found by asking a structural question instead: <em>what does this convergence test assume about the inner solver, and which inner solvers violate it?</em></p>
+      </div>
+    </aside>
+
+    <p>#3959 is worth one more note. My first instinct was to teach <code>newton.jl</code> how to reach into a polyalgorithm's active subcache — which would have worked, and would have been a workaround living permanently in the wrong package. Per review, both halves belong at the interface level upstream, so the accessors and the <code>reinit!</code> reset went to <a href="https://github.com/SciML/NonlinearSolve.jl/pull/1115" target="_blank"><strong>NonlinearSolve.jl #1115</strong></a> <em>(opened today)</em>, and #3959 is being reworked into the consumer side only — every polyalgorithm-unsafe inner-cache read in <code>newton.jl</code> routed through the upstream <code>get_u</code>/<code>get_fu</code> accessors, with no local workaround left behind.</p>
+
+    <h2>The operator mass-matrix chain, continued</h2>
+    <p>The thread I picked up in Weeks 7–8 — code that quietly assumes the mass matrix is a concrete <code>Matrix</code> — kept producing hits as I pushed further along the same path.</p>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3916" target="_blank"><strong>#3916:</strong></a> Fixes a <code>DimensionMismatch</code> in <code>jacobian2W!</code> for a <code>ScalarOperator</code> mass matrix (issue #3915). Both <code>jacobian2W!</code> and <code>jacobian2W</code> special-case <code>mass_matrix isa UniformScaling</code> to skip the <code>axes(mass_matrix) == axes(W)</code> boundscheck. A <code>ScalarOperator</code> is the same object mathematically — λ·I — but isn't a <code>UniformScaling</code> and reports <code>axes(mm) == ()</code>, so it fell into the boundscheck meant for full matrices. This is the next link in the chain <strong>#3814 → SciMLOperators#400 → #3837 → #3916</strong>: the first place a <code>ScalarOperator</code> mass matrix actually reaches now that the entry crash and <code>get_differential_vars</code> are both already fixed.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3923" target="_blank"><strong>#3923:</strong></a> Makes <code>get_differential_vars</code> check <code>Diagonal.diag</code> instead of the full matrix. It ran <code>all(!iszero, mm)</code> before reaching its <code>_isdiag</code> branch — for a <code>Diagonal</code> that walks all n² positions, turning every diagonal hit into a scalar <code>getindex</code> on the underlying vector. The added <code>Diagonal</code> dispatch broadcasts over <code>mm.diag</code> instead: O(n) for a question the type answers exactly, and no scalar <code>getindex</code>, which a device-resident vector disallows by default. Same reduction <code>find_algebraic_vars_eqs(::Diagonal)</code> uses a few lines away in the same file.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3944" target="_blank"><strong>#3944:</strong></a> Unwraps operator mass matrices before <code>findall</code> in <code>OrdinaryDiffEqDifferentiation</code>. Several places seed a sparsity pattern with <code>idxs = findall(!iszero, f.mass_matrix)</code> and then index it — both of which need a concrete matrix, so pairing a SciMLOperator mass matrix with a <code>jac_prototype</code> threw <code>MethodError: no method matching keys(::MatrixOperator{...})</code>. One <code>concrete_mass_matrix</code> helper at all four sites removes the crash sites on the path reported in issue #2929.</li>
+    </ul>
+
+    <h2>A method that was never FSAL, and some housekeeping</h2>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3975" target="_blank"><strong>#3975:</strong></a> Fixes <code>ExplicitTaylor</code>'s <code>fsallast</code> aliasing to the state buffer. <code>ExplicitTaylor</code> and <code>ExplicitTaylorAdaptiveOrder</code> build each step from the Taylor jet and never reuse the previous step's last derivative, so they are not FSAL methods at all — but neither declared <code>isfsal</code>, so both silently inherited the <code>true</code> default. The fix declares them non-FSAL, after which the initial-step heuristic uses its own <code>zero(u0)</code> and the caches can return <code>(nothing, nothing)</code> exactly as <code>FunctionMapCache</code> already does.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3945" target="_blank"><strong>#3945:</strong></a> Drops stale <code>BaseThreads</code> and <code>Sequential</code> imports from <code>OrdinaryDiffEqExtrapolation</code>, whose <code>no_stale_explicit_imports</code> QA check was failing on master; neither name is referenced anywhere in the package, while <code>PolyesterThreads</code> on the same import line genuinely is and stays. Small, but notable for a different reason: it is the only PR I both opened and merged inside this fortnight. Of the rest of the work in this post, three PRs were closed without merging and the remainder are still in review as I write.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3897" target="_blank"><strong>#3897:</strong></a> <em>(closed)</em> Four <code>@test_broken</code> order assertions in <code>modelingtoolkit/nlstep_tests.jl</code> started passing, so the MTK lane reported <code>Unexpected Pass</code> and errored out. All four were <code>NonlinearSolveAlg(TrustRegion())</code> convergence-order checks on TRBDF2 and QNDF2, and they were the failures behind #3807 and #3818 — since fixed by recent NonlinearSolve releases, <code>SciML/NonlinearSolve.jl#1010</code> recomputing the trust-region radius on <code>reinit!</code>. The assertions had already been unbroken on the maintainer's side, so this closed within minutes of opening.</li>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3946" target="_blank"><strong>#3946:</strong></a> <em>(closed)</em> An attempt to restore <code>OrdinaryDiffEqNonlinearSolve</code>'s solver-author public API. #3832 kept only the algorithm types and dropped the extension surface — <code>build_nlsolver</code>, <code>nlsolve!</code>, <code>compute_step!</code> and friends — which every downstream sublibrary implementing an implicit method still imports directly.</li>
+    </ul>
+
+    <aside class="callout perf">
+      <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+      <div class="callout-body">
+        <span class="callout-title">A first step of 1.0e-323</span>
+        <p>The inherited <code>isfsal</code> default made <code>ode_determine_initdt</code> write an extra <code>f</code> evaluation into <code>integrator.fsallast</code> — and since <code>get_fsalfirstlast</code> returned <code>(cache.u, cache.u)</code> with <code>cache.u === integrator.u</code>, that call was literally <code>f(u, u, p, t)</code>, corrupting the state mid-evaluation for any in-place RHS that reads <code>u</code> after writing <code>du</code>. That is a completely normal way to write an RHS. With <code>u0 = [1.0, 2.0]</code>, <code>integrator.u</code> came back from <code>init</code> as <code>[-16.0, 16.0]</code>; the step estimate saw a <code>NaN</code>, warned, and fell back to <code>tdir * dtmin</code>. On <code>prob_ode_pleiades</code> at <code>abstol = reltol = 1e-10</code> that is a first step of <code>1.0e-323</code>, and the controller spends hundreds of steps climbing back out — all before a single real step has been taken.</p>
+      </div>
+    </aside>
+
+    <h2>Challenges this cycle</h2>
+    <ul>
+      <li><strong>A correct diagnosis is not a landed fix:</strong> #3900 took real work to reproduce and pin down, and it closed without merging. The wrong-answer behaviour was genuine and the analysis holds up, but a confirmed bug plus a working reproduction still does not guarantee that the patch you wrote is the one the package ends up wanting.</li>
+      <li><strong>Working against a moving upstream:</strong> #3959 only makes sense once the polyalgorithm accessors exist in <code>NonlinearSolveBase</code>, so the consumer-side PR has to wait on a release of a package it doesn't control. Splitting a fix across two repositories is clearly the right call, but it turns one review into a dependency chain.</li>
+      <li><strong>A long review queue:</strong> ten PRs opened inside this fortnight, one of them merged, three closed without merging, and seven — counting #3886, opened the evening before the window — still in the queue. That is a normal shape for two weeks in a package this size, but it does mean this post describes a lot of work whose final state I can't yet report.</li>
+    </ul>
+
+    <h2>Goals for the next two weeks</h2>
+    <ul>
+      <li>Get the review backlog through — #3886, #3893, #3916, #3923, #3944, #3959 and #3975 are all sitting in the queue, and landing them matters more than opening anything new.</li>
+      <li>Land the upstream half of the polyalgorithm fix in <code>NonlinearSolve.jl</code>, and get a release cut so #3959 has a compat floor to point at.</li>
+      <li>Sweep <code>SciMLOperators.jl</code> itself for the operator gaps my mass-matrix work keeps bumping into, rather than continuing to patch each consumer.</li>
+      <li>Keep pushing on the remaining polyalgorithm-as-inner-solver gaps — the <code>NonlinearSolveAlg</code> path has a fix in flight, but the same cache assumption almost certainly exists elsewhere in the package.</li>
+    </ul>
+
+    <h2>The fortnight at a glance</h2>
+    <div class="timeline-wrap">
+      <div class="timeline">
+        <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jul 12 · in review</p><h4>Implicit MRI-GARK, order 4</h4><p>MRI-GARK-ESDIRK46a, marked as closing issue #961 — and fixing the ignored tableau embedding it exposed (#3886).</p></div></div>
+        <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jul 13 · one in review, two closed</p><h4>The wrong-answer cluster</h4><p>Rejected trial steps read as converged (#3893); operator Jacobians handed to TrustRegion under W-reuse (#3900, since closed); nlstep order assertions unbroken (#3897, since closed).</p></div></div>
+        <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jul 15–17 · in review</p><h4>Operator mass matrices, three more links</h4><p>ScalarOperator in jacobian2W! (#3916), Diagonal.diag in get_differential_vars (#3923), operator unwrapping before findall (#3944).</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jul 17–20 · merged</p><h4>Extrapolation QA cleanup</h4><p>Stale BaseThreads/Sequential imports dropped (#3945) — the fortnight's one round trip. The API-restoration PR opened the same evening (#3946) was closed a little over an hour later.</p></div></div>
+        <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jul 19 · in review</p><h4>Polyalgorithm inner solvers</h4><p>A fix for NonlinearSolveAlg crashing and stalling with RobustMultiNewton and FastShortcutNonlinearPolyalg (#3959), split so the real repair lands at the upstream interface.</p></div></div>
+        <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Jul 21 · in review</p><h4>ExplicitTaylor was never FSAL</h4><p>An inherited isfsal default made the init-dt heuristic call f(u, u, p, t) and corrupt the state buffer (#3975).</p></div></div>
+      </div>
+    </div>
+
+    <h2>Closing thoughts</h2>
+    <p>The headline of this fortnight is that the implicit multirate deliverable is written end to end and sitting in review — <code>IRK21a</code>, <code>ESDIRK34a</code> and now <code>ESDIRK46a</code>, an order ladder to match the explicit one. But the part I'll remember is what writing the last rung turned up. A stiffly accurate method is the one case where <code>u - z[s]</code> is exactly zero, so adding <code>ESDIRK46a</code> is precisely what it took to notice that the implicit path had never used its embedding: a zero error estimate, and beside it a state frozen at <code>u0</code> and a converged wrong root. None of the three announced themselves. Each one had to be reasoned into existence before it could be fixed — and most of that reasoning is still sitting in the queue as I write, so <a href="coding-weeks-11-12.html">the next update</a> will have to report on where it all landed.</p>
+
+  </div>
+</article>
+
+<footer class="footer"><div class="container"><p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p></div></footer>
+<script src="../js/main.js?v=6"></script>
+</body>
+</html>
