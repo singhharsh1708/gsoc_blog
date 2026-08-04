@@ -187,10 +187,24 @@
     <div class="contrib-tabs fade-in">
       <button class="contrib-tab active" data-tab="ode">OrdinaryDiffEq.jl</button>
       <button class="contrib-tab" data-tab="bench">SciMLBenchmarks.jl</button>
+      <button class="contrib-tab" data-tab="mtk">ModelingToolkit.jl</button>
+      <button class="contrib-tab" data-tab="operators">SciMLOperators.jl</button>
+      <button class="contrib-tab" data-tab="nlsolve">NonlinearSolve.jl</button>
       <button class="contrib-tab" data-tab="interface">ODEInterfaceDiffEq.jl</button>
     </div>
     <!-- OrdinaryDiffEq -->
     <div class="contrib-grid contrib-panel" data-panel="ode" style="display:grid;">
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3916" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#3916</span><span class="pr-status merged">Merged</span></div><h4>Fix jacobian2W! DimensionMismatch for ScalarOperator mass matrix</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3975" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#3975</span><span class="pr-status merged">Merged</span></div><h4>Fix ExplicitTaylor fsallast aliasing to state buffer</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3959" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#3959</span><span class="pr-status merged">Merged</span></div><h4>Fix NonlinearSolveAlg with polyalgorithm inner solvers</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3944" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#3944</span><span class="pr-status merged">Merged</span></div><h4>Unwrap operator mass matrices before findall in Differentiation</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3923" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#3923</span><span class="pr-status merged">Merged</span></div><h4>get_differential_vars: check Diagonal.diag, not the full matrix</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3763" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#3763</span><span class="pr-status merged">Merged</span></div><h4>Make rand_prototype dense for a sparse noise_rate_prototype</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3683" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#3683</span><span class="pr-status merged">Merged</span></div><h4>Fold RK46NL into the generic LowStorageRK2N dispatch</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3468" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#3468</span><span class="pr-status merged">Merged</span></div><h4>Fix SROCK2 NoiseWrapper and non-square noise</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3893" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#3893</span><span class="pr-status merged">Merged</span></div><h4>NSA: gate iter-1 convergence on inner solver retcode</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3886" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#3886</span><span class="pr-status merged">Merged</span></div><h4>Multirate: implicit MRI-GARK-ESDIRK46a (order 4)</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3945" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#3945</span><span class="pr-status merged">Merged</span></div><h4>Extrapolation: drop stale BaseThreads/Sequential imports</h4></a>
       <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3837" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#3837</span><span class="pr-status merged">Merged</span></div><h4>get_differential_vars: accept IdentityOperator/ScalarOperator mass matrices</h4></a>
       <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3828" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#3828</span><span class="pr-status merged">Merged</span></div><h4>Bump SciMLBase compat floor 3.10 → 3.30 across sublibraries</h4></a>
       <a class="pr-card" href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3827" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#3827</span><span class="pr-status merged">Merged</span></div><h4>SDIRK: ESDIRK3(2)5L[2]SA (Kennedy-Carpenter 2019)</h4></a>
@@ -242,6 +256,22 @@
       <a class="pr-card" href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1480" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#1480</span><span class="pr-status merged">Merged</span></div><h4>Fekete DAE Benchmark</h4></a>
       <a class="pr-card" href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1461" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#1461</span><span class="pr-status merged">Merged</span></div><h4>Two-Bit Adding Unit DAE</h4></a>
       <a class="pr-card" href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1459" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#1459</span><span class="pr-status merged">Merged</span></div><h4>Slider-Crank Mechanism benchmarks</h4></a>
+    </div>
+    <!-- ModelingToolkit -->
+    <div class="contrib-grid contrib-panel" data-panel="mtk" style="display:none;">
+      <a class="pr-card" href="https://github.com/SciML/ModelingToolkit.jl/pull/4681" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#4681</span><span class="pr-status merged">Merged</span></div><h4>Init test: accept NonlinearLeastSquaresProblem fallback for HydraulicSystem</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/ModelingToolkit.jl/pull/4649" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#4649</span><span class="pr-status merged">Merged</span></div><h4>Support Symbol inputs for bif_par and plot_var in BifurcationProblem</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/ModelingToolkit.jl/pull/4609" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#4609</span><span class="pr-status merged">Merged</span></div><h4>ODENLStepData: forward outer ODEFunction flag to inner nlprob</h4></a>
+    </div>
+    <!-- SciMLOperators -->
+    <div class="contrib-grid contrib-panel" data-panel="operators" style="display:none;">
+      <a class="pr-card" href="https://github.com/SciML/SciMLOperators.jl/pull/416" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#416</span><span class="pr-status merged">Merged</span></div><h4>Fix update_coefficients! for out-of-place-only update funcs</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/SciMLOperators.jl/pull/400" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#400</span><span class="pr-status merged">Merged</span></div><h4>Add ArrayInterface.issingular for IdentityOperator and ScalarOperator</h4></a>
+      <a class="pr-card" href="https://github.com/SciML/SciMLOperators.jl/pull/397" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#397</span><span class="pr-status merged">Merged</span></div><h4>WOperator{!IIP}: materialize MatrixOperator mass matrix in convert</h4></a>
+    </div>
+    <!-- NonlinearSolve -->
+    <div class="contrib-grid contrib-panel" data-panel="nlsolve" style="display:none;">
+      <a class="pr-card" href="https://github.com/SciML/NonlinearSolve.jl/pull/1115" target="_blank" rel="noopener"><div class="pr-card-header"><span class="pr-number">#1115</span><span class="pr-status merged">Merged</span></div><h4>Reset force_stop/retcode in polyalg reinit!; add get_u/get_fu</h4></a>
     </div>
     <!-- ODEInterface -->
     <div class="contrib-grid contrib-panel" data-panel="interface" style="display:none;">
@@ -341,7 +371,7 @@
       </div>
       <div class="achievement-card">
         <div class="ach-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg></div>
-        <h4>70+ Merged PRs in SciML</h4><p>Active contributor across the ecosystem</p>
+        <h4>80+ Merged PRs in SciML</h4><p>Active contributor across the ecosystem</p>
       </div>
     </div>
   </div>
