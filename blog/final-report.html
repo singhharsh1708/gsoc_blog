@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GSoC 2026 Final Report — Tableau Infrastructure and Multirate Methods | Harsh Singh</title>
+  <meta name="description" content="GSoC 2026 final report with SciML: tableau-based solver infrastructure and a full multirate solver family for OrdinaryDiffEq.jl, with 79 merged PRs across four repositories.">
+  <meta property="og:title" content="GSoC 2026 Final Report — Tableau Infrastructure and Multirate Methods">
+  <meta property="og:description" content="Both proposal deliverables shipped: ten multirate solvers plus MREIL, the tableau migrations, and the work-precision benchmarks. 79 merged PRs.">
+  <link rel="stylesheet" href="../css/style.css?v=7">
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav class="navbar" id="navbar"><div class="container"><a href="../index.html" class="nav-logo">singhharsh.in</a><ul class="nav-links"><li><a href="../index.html#about">About</a></li><li><a href="../index.html#gsoc">GSoC</a></li><li><a href="../index.html#blog">Blog</a></li><li><a href="../index.html#contact">Contact</a></li><li><button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"><svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button></li></ul><div class="mobile-actions"><button class="theme-toggle" id="theme-toggle-mobile" aria-label="Toggle theme"><svg id="theme-icon-mobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button><button class="mobile-toggle" id="mobile-toggle" aria-label="Open menu"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button></div></div></nav>
+<div class="mobile-nav" id="mobile-nav"><a href="../index.html">Home</a><a href="../index.html#blog">Blog</a><a href="../index.html#contact">Contact</a></div>
+
+<article class="blog-post">
+  <div class="blog-post-header">
+    <a href="../index.html#blog" class="blog-post-back">← Back to Blog</a>
+    <h1>GSoC 2026 Final Report — Tableau Infrastructure and Multirate Methods</h1>
+    <div class="blog-post-meta">
+      <span>August 7, 2026</span><span>10 min read</span><span class="blog-category">GSoC</span>
+    </div>
+  </div>
+
+  <div class="blog-post-content">
+    <p class="lead">This is my final work product for Google Summer of Code 2026 with <a href="https://sciml.ai" target="_blank">SciML</a> (NumFOCUS), mentored by Chris Rackauckas. The proposal had two deliverables for OrdinaryDiffEq.jl: migrate solver families from hand-written per-method implementations to generic tableau-driven forms, and build a family of multirate integrators for split ODE systems, finishing with public benchmarks. Both shipped. Over the project I merged 68 pull requests into OrdinaryDiffEq.jl, 7 into SciMLBenchmarks.jl, 3 into SciMLOperators.jl, and 1 into NonlinearSolve.jl, with 5 more under review as I write this.</p>
+
+    <p>I want to thank Chris for the fast reviews and for holding every PR to the same standard, which taught me more than the code did.</p>
+
+    <h2>Multirate methods</h2>
+    <p>OrdinaryDiffEq.jl had no multirate solvers when the project started. It now has a registered subpackage, <code>OrdinaryDiffEqMultirate</code>, containing ten methods, and a pending restructuring that splits the implicit members into <code>OrdinaryDiffEqMultirateImplicit</code> so the explicit package stays dependency-light.</p>
+
+    <table>
+      <thead><tr><th>Description</th><th>PR</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>MREEF, extrapolated multirate forward Euler (Constantinescu and Sandu 2013)</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3139" target="_blank"><strong>#3139</strong></a></td><td>Merged</td></tr>
+        <tr><td>MRAB, multirate Adams-Bashforth</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3707" target="_blank"><strong>#3707</strong></a></td><td>Merged</td></tr>
+        <tr><td>MIS2, multirate infinitesimal step (Wensch, Knoth, Galant 2009)</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3717" target="_blank"><strong>#3717</strong></a></td><td>Merged</td></tr>
+        <tr><td>Explicit MRI-GARK ERK22a and ERK22b (Sandu 2019)</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3724" target="_blank"><strong>#3724</strong></a></td><td>Merged</td></tr>
+        <tr><td>Explicit MRI-GARK ERK33a and ERK45a</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3747" target="_blank"><strong>#3747</strong></a></td><td>Merged</td></tr>
+        <tr><td>MRI-GARK slow-forcing accumulation fused</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3741" target="_blank"><strong>#3741</strong></a></td><td>Merged</td></tr>
+        <tr><td>Implicit MRI-GARK IRK21a</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3811" target="_blank"><strong>#3811</strong></a></td><td>Merged</td></tr>
+        <tr><td>Implicit MRI-GARK ESDIRK34a</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3812" target="_blank"><strong>#3812</strong></a></td><td>Merged</td></tr>
+        <tr><td>Implicit MRI-GARK ESDIRK46a</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3886" target="_blank"><strong>#3886</strong></a></td><td>Merged</td></tr>
+        <tr><td>MREIL, linearly implicit extrapolated multirate Euler, plus the package split</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4115" target="_blank"><strong>#4115</strong></a></td><td>Open</td></tr>
+        <tr><td>Multirate work-precision benchmarks, three problems including a null case</td><td><a href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1629" target="_blank"><strong>#1629</strong></a></td><td>Open</td></tr>
+      </tbody>
+    </table>
+
+    <p>MREIL factorizes W once per extrapolation column and reuses it across substeps, reuses the Jacobian across rejected steps, and was verified as a W-method whose Richardson order survives a frozen Jacobian. In the benchmark's favorable regime the multirate methods run about an order of magnitude faster at loose tolerances and 2x to 6x at tight ones; the null case shows where single-rate methods win, so the diagrams show where multirate stops paying and not only where it wins. Writing the benchmark also surfaced that the explicit MRI-GARK error estimators cannot see micro instability, documented in the notebook, and a solver crash filed as <a href="https://github.com/SciML/OrdinaryDiffEq.jl/issues/4149" target="_blank">#4149</a>.</p>
+
+    <h2>Tableau-based solver infrastructure</h2>
+    <p>The second deliverable was moving solver families onto generic, data-driven implementations so a new method is a tableau plus a constructor rather than a hand-written <code>perform_step!</code>.</p>
+
+    <table>
+      <thead><tr><th>Description</th><th>PR</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Symplectic drift-kick methods migrated to generic form</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3473" target="_blank"><strong>#3473</strong></a></td><td>Merged</td></tr>
+        <tr><td>Verner tableau and interpolant construction specialized</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3591" target="_blank"><strong>#3591</strong></a></td><td>Merged</td></tr>
+        <tr><td>CFNLIRK3 migrated to ESDIRKIMEX tableau form</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3651" target="_blank"><strong>#3651</strong></a></td><td>Merged</td></tr>
+        <tr><td>ABDF2 bootstrap moved onto the generic cache</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3656" target="_blank"><strong>#3656</strong></a></td><td>Merged</td></tr>
+        <tr><td>Sixteen AlJahdali 3S* methods consolidated into the generic 3S dispatch, about 700 lines removed</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3241" target="_blank"><strong>#3241</strong></a></td><td>Merged</td></tr>
+        <tr><td>RK46NL folded into the generic 2N dispatch</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3683" target="_blank"><strong>#3683</strong></a></td><td>Merged</td></tr>
+        <tr><td>Embedded-pair order-condition test for every adaptive SDIRK and ESDIRK tableau</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3661" target="_blank"><strong>#3661</strong></a></td><td>Merged</td></tr>
+        <tr><td>ESDIRK659L2SA broken embedded coefficients caught by that test and fixed</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3662" target="_blank"><strong>#3662</strong></a></td><td>Merged</td></tr>
+        <tr><td>Generic stage-predictor menu for ESDIRK methods</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3668" target="_blank"><strong>#3668</strong></a></td><td>Merged</td></tr>
+      </tbody>
+    </table>
+
+    <p>New methods added through that infrastructure: Ralston4 (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3215" target="_blank"><strong>#3215</strong></a>), the parametric relaxation RK family (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3246" target="_blank"><strong>#3246</strong></a>), MSRK10, a tenth-order method requested in a four-year-old issue (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3755" target="_blank"><strong>#3755</strong></a>), the ARS and BHR IMEX-RK schemes (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3704" target="_blank"><strong>#3704</strong></a>, <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3706" target="_blank"><strong>#3706</strong></a>), the IMEX-SSP family (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3705" target="_blank"><strong>#3705</strong></a>), and ESDIRK3(2)5L[2]SA (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3827" target="_blank"><strong>#3827</strong></a>).</p>
+
+    <h2>Hardening work beyond the proposal</h2>
+    <p>Working in the solver internals surfaced bugs that I fixed as they blocked or adjoined the main work.</p>
+
+    <table>
+      <thead><tr><th>Description</th><th>PR</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>NonlinearSolve.jl algorithms as inner solvers: polyalgorithm crash and stall fixes</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3959" target="_blank"><strong>#3959</strong></a></td><td>Merged</td></tr>
+        <tr><td>Same bug class in the Newmark structural solvers</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4112" target="_blank"><strong>#4112</strong></a></td><td>Merged</td></tr>
+        <tr><td>Same class for SimpleNonlinearSolve no-init caches</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4137" target="_blank"><strong>#4137</strong></a></td><td>Open</td></tr>
+        <tr><td>W-matrix reuse for NonlinearSolve inner solvers</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3693" target="_blank"><strong>#3693</strong></a>, <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3753" target="_blank"><strong>#3753</strong></a>, <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3703" target="_blank"><strong>#3703</strong></a></td><td>Merged</td></tr>
+        <tr><td>Upstream cache accessors for the polyalgorithm fix</td><td><a href="https://github.com/SciML/NonlinearSolve.jl/pull/1115" target="_blank"><strong>#1115</strong></a></td><td>Merged</td></tr>
+        <tr><td>Adaptive time stepping for Newmark solvers, broken since introduction</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4148" target="_blank"><strong>#4148</strong></a></td><td>Open</td></tr>
+        <tr><td>Taylor-series solver silent wrong answers</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3975" target="_blank"><strong>#3975</strong></a>, <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4116" target="_blank"><strong>#4116</strong></a></td><td>Merged</td></tr>
+        <tr><td>Seven DAE benchmarks from the IVP test set</td><td><a href="https://github.com/SciML/SciMLBenchmarks.jl/pulls?q=is%3Apr+author%3Asinghharsh1708+is%3Amerged" target="_blank"><strong>#1480 to #1486</strong></a></td><td>Merged</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Current state and what is left</h2>
+    <p>Everything above is merged and released except the five open PRs, which are under review. Remaining future work: register <code>OrdinaryDiffEqMultirateImplicit</code> and add MREIL to the benchmark notebook once released, and the MrGARK family of Roberts, Loffeld, Sarshar, Woodward and Sandu (issue <a href="https://github.com/SciML/OrdinaryDiffEq.jl/issues/961" target="_blank">#961</a>), which is scoped but not started.</p>
+
+    <h2>What I learned</h2>
+    <p>The recurring lesson was that a fix is not done when the tests pass: three times a test I wrote also passed on the unfixed code, and mutation testing, deleting the fix and checking the suite goes red, became my default. The other lesson was to measure before claiming. Several times a plausible explanation of a bug did not survive an A/B run, and the runs were always cheaper than being wrong in review.</p>
+
+    <h2>Future prospects</h2>
+    <p>I plan to stay involved with SciML past the program: the open PRs through review, the MrGARK family, and stochastic Taylor and RODE-Taylor integration as the next arc.</p>
+
+    <h2>Full contribution lists</h2>
+    <ul>
+      <li><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pulls?q=is%3Apr+author%3Asinghharsh1708+is%3Amerged" target="_blank">All merged OrdinaryDiffEq.jl PRs</a></li>
+      <li><a href="https://github.com/SciML/SciMLBenchmarks.jl/pulls?q=is%3Apr+author%3Asinghharsh1708" target="_blank">SciMLBenchmarks.jl PRs</a></li>
+      <li>SciMLOperators and NonlinearSolve: <a href="https://github.com/SciML/SciMLOperators.jl/pull/397" target="_blank"><strong>#397</strong></a>, <a href="https://github.com/SciML/SciMLOperators.jl/pull/400" target="_blank"><strong>#400</strong></a>, <a href="https://github.com/SciML/SciMLOperators.jl/pull/416" target="_blank"><strong>#416</strong></a>, <a href="https://github.com/SciML/NonlinearSolve.jl/pull/1115" target="_blank"><strong>#1115</strong></a></li>
+    </ul>
+
+  </div>
+</article>
+
+<footer class="footer"><div class="container"><p>Built with ♥ by <a href="https://github.com/singhharsh1708" target="_blank">Harsh Singh</a> · GSoC 2026 @ SciML · © 2026</p></div></footer>
+<script src="../js/main.js?v=6"></script>
+</body>
+</html>

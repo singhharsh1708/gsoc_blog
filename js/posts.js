@@ -7,6 +7,15 @@
 
 window.POSTS = [
   {
+    slug: 'final-report',
+    title: 'GSoC 2026 Final Report — Tableau Infrastructure and Multirate Methods',
+    excerpt: 'The final work product: both proposal deliverables shipped, ten multirate solvers plus MREIL under review, the tableau migrations, and the work-precision benchmarks. 79 merged PRs across four repositories.',
+    date: '2026-08-07',
+    readTime: '10 min read',
+    category: 'gsoc',
+    categoryLabel: 'GSoC',
+  },
+  {
     slug: 'coding-weeks-11-12',
     title: 'GSoC Weeks 11–12: Fixing It Upstream, and a Merge Wave',
     excerpt: 'A mid-cycle update — the polyalgorithm fix lands upstream in NonlinearSolve.jl and SciMLOperators.jl, a batch of long-open PRs merges at once, and the same cache bug resurfaces one sublibrary over.',
