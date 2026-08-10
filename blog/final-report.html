@@ -32,12 +32,12 @@
       <div class="project-meta-item"><span class="label">Merged PRs</span><span class="value status">79 across 4 repos</span></div>
     </div>
 
-    <p class="lead">This is my final work product for Google Summer of Code 2026 with <a href="https://sciml.ai" target="_blank">SciML</a>. The proposal had two deliverables for OrdinaryDiffEq.jl: migrate solver families from hand-written per-method implementations to generic tableau-driven forms, and build a family of multirate integrators for split ODE systems, finishing with public benchmarks. Both shipped. I merged 68 pull requests into OrdinaryDiffEq.jl, 7 into SciMLBenchmarks.jl, 3 into SciMLOperators.jl, and 1 into NonlinearSolve.jl, with 5 more under review as I write this.</p>
+    <p class="lead">This is my final work product for Google Summer of Code 2026 with <a href="https://sciml.ai" target="_blank">SciML</a>. The proposal had two deliverables for OrdinaryDiffEq.jl: migrate solver families from hand-written per-method implementations to generic tableau-driven forms, and build a family of multirate integrators for split ODE systems, finishing with public benchmarks. Both shipped. I merged 71 pull requests into OrdinaryDiffEq.jl, 7 into SciMLBenchmarks.jl, 3 into SciMLOperators.jl, and 1 into NonlinearSolve.jl, with 2 more under review as I write this.</p>
 
     <p>I want to thank Chris for the fast reviews and for holding every PR to the same standard, which taught me more than the code did.</p>
 
     <h2>Multirate methods</h2>
-    <p>OrdinaryDiffEq.jl had no multirate solvers when the project started. It now has a registered subpackage, <code>OrdinaryDiffEqMultirate</code>, with ten methods spanning the extrapolated, Adams-Bashforth, multirate-infinitesimal-step and MRI-GARK families, and a pending restructuring that splits the implicit members into <code>OrdinaryDiffEqMultirateImplicit</code> so the explicit package stays dependency-light.</p>
+    <p>OrdinaryDiffEq.jl had no multirate solvers when the project started. It now has a registered subpackage, <code>OrdinaryDiffEqMultirate</code>, with ten methods spanning the extrapolated, Adams-Bashforth, multirate-infinitesimal-step and MRI-GARK families, and a second subpackage, <code>OrdinaryDiffEqMultirateImplicit</code>, holding the implicit members so the explicit package stays dependency-light.</p>
 
     <figure class="code-figure">
       <div class="code-figure-head">
@@ -66,7 +66,7 @@ sol = solve(prob, MREIL(m = 4, order = 4))   # linearly implicit, stiff-fast-sta
         <tr><td>Implicit MRI-GARK IRK21a</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3811" target="_blank"><strong>#3811</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>Implicit MRI-GARK ESDIRK34a</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3812" target="_blank"><strong>#3812</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>Implicit MRI-GARK ESDIRK46a</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3886" target="_blank"><strong>#3886</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
-        <tr><td>MREIL, linearly implicit extrapolated member, plus the package split</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4115" target="_blank"><strong>#4115</strong></a></td><td><span class="pr-status open">Open</span></td></tr>
+        <tr><td>MREIL, linearly implicit extrapolated member, plus the package split</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4115" target="_blank"><strong>#4115</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>Multirate work-precision benchmarks</td><td><a href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1629" target="_blank"><strong>#1629</strong></a></td><td><span class="pr-status open">Open</span></td></tr>
       </tbody>
     </table>
@@ -130,10 +130,10 @@ sol = solve(prob, MREIL(m = 4, order = 4))   # linearly implicit, stiff-fast-sta
       <tbody>
         <tr><td>Polyalgorithm inner solvers: crash and silent-stall fixes</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3959" target="_blank"><strong>#3959</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>Same bug class in the Newmark structural solvers</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4112" target="_blank"><strong>#4112</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
-        <tr><td>Same class for SimpleNonlinearSolve no-init caches</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4137" target="_blank"><strong>#4137</strong></a></td><td><span class="pr-status open">Open</span></td></tr>
+        <tr><td>Same class for SimpleNonlinearSolve no-init caches</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4137" target="_blank"><strong>#4137</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>W-matrix reuse for NonlinearSolve inner solvers</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3693" target="_blank"><strong>#3693</strong></a>, <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3753" target="_blank"><strong>#3753</strong></a>, <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3703" target="_blank"><strong>#3703</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>Upstream cache accessors for the polyalgorithm fix</td><td><a href="https://github.com/SciML/NonlinearSolve.jl/pull/1115" target="_blank"><strong>#1115</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
-        <tr><td>Adaptive time stepping for Newmark solvers, broken since introduction</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4148" target="_blank"><strong>#4148</strong></a></td><td><span class="pr-status open">Open</span></td></tr>
+        <tr><td>Adaptive time stepping for Newmark solvers, broken since introduction</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4148" target="_blank"><strong>#4148</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>Taylor-series solver silent wrong answers</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3975" target="_blank"><strong>#3975</strong></a>, <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4116" target="_blank"><strong>#4116</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>Seven DAE benchmarks from the IVP test set</td><td><a href="https://github.com/SciML/SciMLBenchmarks.jl/pulls?q=is%3Apr+author%3Asinghharsh1708+is%3Amerged" target="_blank"><strong>#1480 – #1486</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
       </tbody>
@@ -160,7 +160,7 @@ sol = solve(prob, MREIL(m = 4, order = 4))   # linearly implicit, stiff-fast-sta
     </div>
 
     <h2>Current state and what is left</h2>
-    <p>Everything above is merged and released except the five open PRs, which are under review. Remaining future work: register <code>OrdinaryDiffEqMultirateImplicit</code> and add MREIL to the benchmark notebook once released, and the MrGARK family of Roberts, Loffeld, Sarshar, Woodward and Sandu (issue <a href="https://github.com/SciML/OrdinaryDiffEq.jl/issues/961" target="_blank">#961</a>), which is scoped but not started.</p>
+    <p>Everything above is merged except the two open PRs, which are under review. Remaining future work: register <code>OrdinaryDiffEqMultirateImplicit</code> and add MREIL to the benchmark notebook once released, and the MrGARK family of Roberts, Loffeld, Sarshar, Woodward and Sandu (issue <a href="https://github.com/SciML/OrdinaryDiffEq.jl/issues/961" target="_blank">#961</a>), which is scoped but not started.</p>
 
     <h2>Future prospects</h2>
     <p>I plan to stay involved with SciML past the program: the open PRs through review, the MrGARK family, and stochastic Taylor and RODE-Taylor integration as the next arc.</p>
