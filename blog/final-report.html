@@ -32,7 +32,7 @@
       <div class="project-meta-item"><span class="label">Merged PRs</span><span class="value status">79 across 4 repos</span></div>
     </div>
 
-    <p class="lead">This is my final work product for Google Summer of Code 2026 with <a href="https://sciml.ai" target="_blank">SciML</a>. The proposal had two deliverables for OrdinaryDiffEq.jl: migrate solver families from hand-written per-method implementations to generic tableau-driven forms, and build a family of multirate integrators for split ODE systems, finishing with public benchmarks. Both shipped. I merged 71 pull requests into OrdinaryDiffEq.jl, 7 into SciMLBenchmarks.jl, 3 into SciMLOperators.jl, and 1 into NonlinearSolve.jl, with 2 more under review as I write this.</p>
+    <p class="lead">This is my final work product for Google Summer of Code 2026 with <a href="https://sciml.ai" target="_blank">SciML</a>. The proposal had two deliverables for OrdinaryDiffEq.jl: migrate solver families from hand-written per-method implementations to generic tableau-driven forms, and build a family of multirate integrators for split ODE systems, finishing with public benchmarks. Both shipped. I merged 71 pull requests into OrdinaryDiffEq.jl, 8 into SciMLBenchmarks.jl, 3 into SciMLOperators.jl, and 1 into NonlinearSolve.jl, with 1 more under review as I write this.</p>
 
     <p>I want to thank Chris for the fast reviews and for holding every PR to the same standard, which taught me more than the code did.</p>
 
@@ -67,7 +67,7 @@ sol = solve(prob, MREIL(m = 4, order = 4))   # linearly implicit, stiff-fast-sta
         <tr><td>Implicit MRI-GARK ESDIRK34a</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3812" target="_blank"><strong>#3812</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>Implicit MRI-GARK ESDIRK46a</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3886" target="_blank"><strong>#3886</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>MREIL, linearly implicit extrapolated member, plus the package split</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4115" target="_blank"><strong>#4115</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
-        <tr><td>Multirate work-precision benchmarks</td><td><a href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1629" target="_blank"><strong>#1629</strong></a></td><td><span class="pr-status open">Open</span></td></tr>
+        <tr><td>Multirate work-precision benchmarks</td><td><a href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1629" target="_blank"><strong>#1629</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
       </tbody>
     </table>
 
@@ -160,7 +160,7 @@ sol = solve(prob, MREIL(m = 4, order = 4))   # linearly implicit, stiff-fast-sta
     </div>
 
     <h2>Current state and what is left</h2>
-    <p>Everything above is merged except the two open PRs, which are under review. Remaining future work: register <code>OrdinaryDiffEqMultirateImplicit</code> and add MREIL to the benchmark notebook once released, and the MrGARK family of Roberts, Loffeld, Sarshar, Woodward and Sandu (issue <a href="https://github.com/SciML/OrdinaryDiffEq.jl/issues/961" target="_blank">#961</a>), which is scoped but not started.</p>
+    <p>Everything above is merged except #3798, which is under review. Remaining future work: register <code>OrdinaryDiffEqMultirateImplicit</code> and add MREIL to the benchmark notebook once released, and the MrGARK family of Roberts, Loffeld, Sarshar, Woodward and Sandu (issue <a href="https://github.com/SciML/OrdinaryDiffEq.jl/issues/961" target="_blank">#961</a>), which is scoped but not started.</p>
 
     <h2>Future prospects</h2>
     <p>I plan to stay involved with SciML past the program: the open PRs through review, the MrGARK family, and stochastic Taylor and RODE-Taylor integration as the next arc.</p>
