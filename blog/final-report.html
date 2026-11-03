@@ -19,7 +19,7 @@
     <a href="../index.html#blog" class="blog-post-back">← Back to Blog</a>
     <h1>GSoC 2026 Final Report — Tableau Infrastructure and Multirate Methods</h1>
     <div class="blog-post-meta">
-      <span>August 7, 2026</span><span>10 min read</span><span class="blog-category">GSoC</span>
+      <span>August 7, 2026 · updated November 3, 2026</span><span>10 min read</span><span class="blog-category">GSoC</span>
     </div>
   </div>
 
@@ -37,7 +37,7 @@
     <p>I want to thank Chris for the fast reviews and for holding every PR to the same standard, which taught me more than the code did.</p>
 
     <h2>Multirate methods</h2>
-    <p>OrdinaryDiffEq.jl had no multirate solvers when the project started. It now has a registered subpackage, <code>OrdinaryDiffEqMultirate</code>, with ten methods spanning the extrapolated, Adams-Bashforth, multirate-infinitesimal-step and MRI-GARK families, and a pending restructuring that splits the implicit members into <code>OrdinaryDiffEqMultirateImplicit</code> so the explicit package stays dependency-light.</p>
+    <p>OrdinaryDiffEq.jl had no multirate solvers when the project started. It now has a registered subpackage, <code>OrdinaryDiffEqMultirate</code>, with ten methods spanning the extrapolated, Adams-Bashforth, multirate-infinitesimal-step and MRI-GARK families, and a restructuring, merged with MREIL in #4115, that splits the implicit members into <code>OrdinaryDiffEqMultirateImplicit</code> so the explicit package stays dependency-light.</p>
 
     <figure class="code-figure">
       <div class="code-figure-head">
@@ -66,8 +66,8 @@ sol = solve(prob, MREIL(m = 4, order = 4))   # linearly implicit, stiff-fast-sta
         <tr><td>Implicit MRI-GARK IRK21a</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3811" target="_blank"><strong>#3811</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>Implicit MRI-GARK ESDIRK34a</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3812" target="_blank"><strong>#3812</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>Implicit MRI-GARK ESDIRK46a</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3886" target="_blank"><strong>#3886</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
-        <tr><td>MREIL, linearly implicit extrapolated member, plus the package split</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4115" target="_blank"><strong>#4115</strong></a></td><td><span class="pr-status open">Open</span></td></tr>
-        <tr><td>Multirate work-precision benchmarks</td><td><a href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1629" target="_blank"><strong>#1629</strong></a></td><td><span class="pr-status open">Open</span></td></tr>
+        <tr><td>MREIL, linearly implicit extrapolated member, plus the package split</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4115" target="_blank"><strong>#4115</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
+        <tr><td>Multirate work-precision benchmarks</td><td><a href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1629" target="_blank"><strong>#1629</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
       </tbody>
     </table>
 
@@ -130,10 +130,10 @@ sol = solve(prob, MREIL(m = 4, order = 4))   # linearly implicit, stiff-fast-sta
       <tbody>
         <tr><td>Polyalgorithm inner solvers: crash and silent-stall fixes</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3959" target="_blank"><strong>#3959</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>Same bug class in the Newmark structural solvers</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4112" target="_blank"><strong>#4112</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
-        <tr><td>Same class for SimpleNonlinearSolve no-init caches</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4137" target="_blank"><strong>#4137</strong></a></td><td><span class="pr-status open">Open</span></td></tr>
+        <tr><td>Same class for SimpleNonlinearSolve no-init caches</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4137" target="_blank"><strong>#4137</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>W-matrix reuse for NonlinearSolve inner solvers</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3693" target="_blank"><strong>#3693</strong></a>, <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3753" target="_blank"><strong>#3753</strong></a>, <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3703" target="_blank"><strong>#3703</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>Upstream cache accessors for the polyalgorithm fix</td><td><a href="https://github.com/SciML/NonlinearSolve.jl/pull/1115" target="_blank"><strong>#1115</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
-        <tr><td>Adaptive time stepping for Newmark solvers, broken since introduction</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4148" target="_blank"><strong>#4148</strong></a></td><td><span class="pr-status open">Open</span></td></tr>
+        <tr><td>Adaptive time stepping for Newmark solvers, broken since introduction</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4148" target="_blank"><strong>#4148</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>Taylor-series solver silent wrong answers</td><td><a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3975" target="_blank"><strong>#3975</strong></a>, <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4116" target="_blank"><strong>#4116</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
         <tr><td>Seven DAE benchmarks from the IVP test set</td><td><a href="https://github.com/SciML/SciMLBenchmarks.jl/pulls?q=is%3Apr+author%3Asinghharsh1708+is%3Amerged" target="_blank"><strong>#1480 – #1486</strong></a></td><td><span class="pr-status merged">Merged</span></td></tr>
       </tbody>
@@ -160,10 +160,11 @@ sol = solve(prob, MREIL(m = 4, order = 4))   # linearly implicit, stiff-fast-sta
     </div>
 
     <h2>Current state and what is left</h2>
-    <p>Everything above is merged and released except the five open PRs, which are under review. Remaining future work: register <code>OrdinaryDiffEqMultirateImplicit</code> and add MREIL to the benchmark notebook once released, and the MrGARK family of Roberts, Loffeld, Sarshar, Woodward and Sandu (issue <a href="https://github.com/SciML/OrdinaryDiffEq.jl/issues/961" target="_blank">#961</a>), which is scoped but not started.</p>
+    <p>When this report was first published on August 7, five PRs were still under review. All five merged: four by August 11 and the last, W reuse for out-of-place SimpleNonlinearSolve inner solvers (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/3798" target="_blank">#3798</a>), on August 30. They include MREIL with the package split (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4115" target="_blank">#4115</a>) and the benchmarks (<a href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1629" target="_blank">SciMLBenchmarks #1629</a>). Two follow-ups landed before the end of the program: fixed adaptive error estimates for MRIGARKERK22a and MIS (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4232" target="_blank">#4232</a>) and dense output for the explicit multirate methods (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4233" target="_blank">#4233</a>). Google marked the project as successfully completed on August 31, 2026.</p>
+    <p>Still open: registering <code>OrdinaryDiffEqMultirateImplicit</code>, adding MREIL to the benchmark notebook, and the MrGARK family of Roberts, Loffeld, Sarshar, Woodward and Sandu (issue <a href="https://github.com/SciML/OrdinaryDiffEq.jl/issues/961" target="_blank">#961</a>), which is scoped but not started.</p>
 
     <h2>Future prospects</h2>
-    <p>I plan to stay involved with SciML past the program: the open PRs through review, the MrGARK family, and stochastic Taylor and RODE-Taylor integration as the next arc.</p>
+    <p>I planned to stay involved with SciML past the program, with RODE-Taylor integration as the next arc, and that is where the work went. Since September: a derivative-free order 1.5 Taylor method for random ODEs (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4591" target="_blank">#4591</a>), convergence tests for the RODE methods (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4588" target="_blank">#4588</a>), a RODE convergence benchmark (<a href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1891" target="_blank">SciMLBenchmarks #1891</a>, <a href="https://github.com/SciML/SciMLBenchmarks.jl/pull/1929" target="_blank">#1929</a>) and its documentation (<a href="https://github.com/SciML/DiffEqDocs.jl/pull/917" target="_blank">DiffEqDocs #917</a>). An order 2.5 method (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4768" target="_blank">#4768</a>) and an order 2 method for affine noise (<a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/4840" target="_blank">#4840</a>) are in review.</p>
 
     <h2>Full contribution lists</h2>
     <ul>

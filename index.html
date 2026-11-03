@@ -56,10 +56,10 @@
 <section class="hero" id="hero">
   <div class="container">
     <div class="hero-content">
-      <div class="hero-badge"><span class="dot"></span> Google Summer of Code 2026 · Selected</div>
+      <div class="hero-badge"><span class="dot"></span> Google Summer of Code 2026 · Completed</div>
       <h1>Harsh Singh</h1>
       <p class="hero-title" id="hero-typing" data-text="GSoC 2026 Contributor @ SciML (NumFOCUS)"></p>
-      <p class="hero-desc">Pre-final year IT undergraduate focused on scientific computing, numerical methods, and high-performance Julia. Contributor to OrdinaryDiffEq.jl, SciMLBenchmarks.jl, and ODEInterfaceDiffEq.jl.</p>
+      <p class="hero-desc">Pre-final year IT undergraduate focused on scientific computing, numerical methods, and high-performance Julia. Contributor to OrdinaryDiffEq.jl, PETScDiffEq.jl, SciMLBenchmarks.jl, and ODEInterfaceDiffEq.jl.</p>
       <div class="hero-ctas">
         <a href="#gsoc" class="btn btn-primary">View GSoC Project <span class="arrow">→</span></a>
         <a href="#blog" class="btn btn-outline">Read the Blog</a>
@@ -125,24 +125,24 @@
     <div class="section-header fade-in">
       <p class="section-label">GSoC 2026</p>
       <h2 class="section-title">Native Julia ODE, SDE, DAE, DDE &amp; PDE solvers</h2>
-      <p class="section-desc">Refactoring the core of OrdinaryDiffEq.jl with generic tableau-driven solver infrastructure.</p>
+      <p class="section-desc">Generic tableau-driven solver infrastructure and the first multirate solvers for OrdinaryDiffEq.jl. Completed August 2026.</p>
     </div>
     <div class="project-card fade-in">
       <div class="project-meta">
         <div class="project-meta-item"><span class="label">Organization</span><span class="value">SciML (NumFOCUS)</span></div>
         <div class="project-meta-item"><span class="label">Year</span><span class="value">2026</span></div>
-        <div class="project-meta-item"><span class="label">Status</span><span class="value status">Active</span></div>
+        <div class="project-meta-item"><span class="label">Status</span><span class="value status">Completed</span></div>
       </div>
-      <p class="project-overview">The project refactors OrdinaryDiffEq.jl by introducing generic tableau-driven solver infrastructure to replace duplicated <code>perform_step!</code> implementations across Runge–Kutta and IMEX solver families. Targeting ~3,300 lines of duplicated stepping code for removal while maintaining performance parity with handwritten kernels.</p>
+      <p class="project-overview">The project moved OrdinaryDiffEq.jl solver families from hand-written <code>perform_step!</code> implementations to generic tableau-driven ones, so a new method is a tableau and a constructor, and added the package's first multirate integrators with public work-precision benchmarks. Both deliverables were merged by August 2026 and Google marked the project complete on August 31. The <a href="blog/final-report.html">final report</a> has the full list of pull requests.</p>
       <div class="project-goals">
-        <h3>Key Goals</h3>
+        <h3>What shipped</h3>
         <ul class="goal-list">
-          <li>Introduce generic IMEXTableau abstraction</li>
-          <li>Replace duplicated perform_step! implementations</li>
-          <li>Refactor RK-based solver families</li>
-          <li>Add multirate methods (MREIL, MIS, MRGARK)</li>
-          <li>Ensure zero-allocation implementations</li>
-          <li>Maintain performance parity with handwritten kernels</li>
+          <li>Multirate solvers: MREEF, MRAB, MIS2, explicit and implicit MRI-GARK, and MREIL, in OrdinaryDiffEqMultirate and OrdinaryDiffEqMultirateImplicit</li>
+          <li>Symplectic, Verner, CFNLIRK3, ABDF2 and low-storage RK families on generic implementations</li>
+          <li>New methods through the same infrastructure: Ralston4, relaxation RK, MSRK10, ARS, BHR, IMEX-SSP, ESDIRK3(2)5L[2]SA</li>
+          <li>An order-condition test for every adaptive SDIRK and ESDIRK embedded pair</li>
+          <li>NonlinearSolve.jl algorithms usable as inner solvers for the implicit steppers</li>
+          <li>Multirate work-precision benchmarks in SciMLBenchmarks.jl</li>
         </ul>
       </div>
       <div class="tech-highlights">
@@ -166,11 +166,13 @@
     <div class="timeline-wrap fade-in">
       <h3>Project Timeline</h3>
       <div class="timeline">
-        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">May 2026</p><h4>Community Bonding</h4><p>Deep-dive into OrdinaryDiffEq.jl internals, align with mentors on design, benchmark existing solvers.</p></div></div>
-        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">June 2026</p><h4>IMEXTableau Stabilization</h4><p>Finalize the generic IMEXTableau type, implement core dispatch infrastructure, first solver migrations.</p></div></div>
-        <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">July 2026</p><h4>RK Family Migration</h4><p>Migrate explicit, implicit, and IMEX Runge–Kutta solvers to the generic tableau framework.</p></div></div>
-        <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">August 2026</p><h4>Multirate Implementations</h4><p>Implement MREIL, MIS, and MRGARK multirate time integration methods.</p></div></div>
-        <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">September 2026</p><h4>Benchmarks &amp; Documentation</h4><p>Comprehensive performance benchmarks, documentation, and final polish.</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">March 2026</p><h4>First methods land</h4><p>Ralston4 and the parametric relaxation RK family, learning the contribution pipeline end to end.</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">April 2026</p><h4>MREEF opens the multirate track</h4><p>The first multirate solver in the package, with the extrapolation and error-control machinery the later members reuse.</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">May 2026</p><h4>Tableau migrations</h4><p>Symplectic, Verner, CFNLIRK3 and ABDF2 move onto generic forms; the embedded-pair test lands and catches a broken tableau.</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">June 2026</p><h4>IMEX schemes and explicit MRI-GARK</h4><p>ARS, BHR and IMEX-SSP arrive through the new infrastructure; the explicit MRI-GARK ladder completes.</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">July 2026</p><h4>Implicit multirate</h4><p>IRK21a, ESDIRK34a and ESDIRK46a land on NonlinearSolve plumbing fixed the same month.</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">August 2026</p><h4>MREIL, benchmarks, completion</h4><p>MREIL and the multirate work-precision benchmarks merge; GSoC 2026 completed on August 31.</p></div></div>
+        <div class="timeline-item active"><div class="timeline-dot"></div><div class="timeline-content"><p class="timeline-date">Since September</p><h4>After GSoC</h4><p>RODE solvers (a derivative-free order 1.5 Taylor method, convergence tests and benchmarks) and PETScDiffEq.jl development.</p></div></div>
       </div>
     </div>
   </div>
@@ -355,7 +357,7 @@
     <div class="achievements-grid fade-in">
       <div class="achievement-card">
         <div class="ach-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/></svg></div>
-        <h4>Google Summer of Code 2026</h4><p>Selected contributor under SciML (NumFOCUS)</p>
+        <h4>Google Summer of Code 2026</h4><p>Completed with SciML (NumFOCUS): tableau infrastructure and multirate solvers</p>
       </div>
       <div class="achievement-card">
         <div class="ach-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg></div>
@@ -371,7 +373,7 @@
       </div>
       <div class="achievement-card">
         <div class="ach-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg></div>
-        <h4>80+ Merged PRs in SciML</h4><p>Active contributor across the ecosystem</p>
+        <h4>131 Merged PRs in OrdinaryDiffEq.jl</h4><p>Plus 228 in PETScDiffEq.jl and 11 in SciMLBenchmarks.jl (November 2026)</p>
       </div>
     </div>
   </div>

@@ -9,7 +9,7 @@ window.POSTS = [
   {
     slug: 'final-report',
     title: 'GSoC 2026 Final Report — Tableau Infrastructure and Multirate Methods',
-    excerpt: 'The final work product: both proposal deliverables shipped, ten multirate solvers plus MREIL under review, the tableau migrations, and the work-precision benchmarks. 79 merged PRs across four repositories.',
+    excerpt: 'The final work product: both proposal deliverables shipped, eleven multirate solvers including MREIL, the tableau migrations, and the work-precision benchmarks. Updated after the program closed on August 31.',
     date: '2026-08-07',
     readTime: '10 min read',
     category: 'gsoc',
