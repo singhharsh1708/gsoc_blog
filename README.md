@@ -2,22 +2,26 @@
 
 🔗 **Live Portfolio & Devlog:** [singhharsh1708.github.io/gsoc_blog](https://singhharsh1708.github.io/gsoc_blog/)
 
-## Google Summer of Code 2026
+## Google Summer of Code 2026 (completed)
 
 **Project:** Native Julia ODE, SDE, DAE, DDE, and PDE Solvers  
 **Organization:** SciML (NumFOCUS)  
 **Mentors:** Chris Rackauckas, Kanav Gupta, Utkarsh, Oscar Smith  
+**Status:** completed August 31, 2026. Full write-up: [GSoC 2026 Final Report](https://singhharsh1708.github.io/gsoc_blog/blog/final-report.html)
 
 ### Overview
 
-`OrdinaryDiffEq.jl` is one of the most comprehensive ODE solver libraries available, but its growth led to substantial code duplication. Most solver families (such as KenCarp, Kvaerno, and Verner) had their own bespoke `perform_step!` implementations. 
+`OrdinaryDiffEq.jl` had grown solver by solver, with most families carrying their own hand-written `perform_step!`. The project moved those families onto generic tableau-driven implementations, so a new method is a tableau plus a constructor, and added the package's first multirate integrators with public work-precision benchmarks.
 
-This project solves that architectural bottleneck by introducing a generic `IMEXTableau{Texplicit, Timplicit}` struct and expanding the generic tableau refactor across all 16 Runge-Kutta solver families. This transition removes roughly ~3,300 lines of duplicated code, guarantees zero-allocation performance, and provides a streamlined interface for introducing novel methods in the future. 
+### What shipped
 
-### Key Deliverables
+- **Multirate solvers:** MREEF, MRAB, MIS2, explicit and implicit MRI-GARK, and MREIL, split across `OrdinaryDiffEqMultirate` and `OrdinaryDiffEqMultirateImplicit`.
+- **Tableau infrastructure:** symplectic, Verner, CFNLIRK3, ABDF2 and low-storage RK families on generic implementations, plus an order-condition test for every adaptive SDIRK and ESDIRK embedded pair.
+- **New methods through that infrastructure:** Ralston4, the relaxation RK family, MSRK10, ARS, BHR, IMEX-SSP and ESDIRK3(2)5L[2]SA.
+- **Benchmarks:** multirate work-precision diagrams in SciMLBenchmarks.jl.
 
-- **IMEX Tableau Migration:** Replacing bespoke steppers for the ARS, ESDIRK, KenCarp, and Kvaerno families with a single, highly-optimized generic dispatch.
-- **Multirate Solvers:** Implementing full, generic solvers for systems where components evolve at vastly different timescales (MREIL, MIS, MRGARK).
-- **RK Family Generalization:** Extending the generic stepper framework to encompass LowStorageRK, Verner, and HighOrderRK architectures.
+Still open: registering `OrdinaryDiffEqMultirateImplicit`, MREIL in the benchmark notebook, and the MrGARK family ([#961](https://github.com/SciML/OrdinaryDiffEq.jl/issues/961)).
 
-All changes strictly preserve mathematical invariants, bounds checking, and high-performance zero-allocation guarantees required for SciML workloads.
+### After GSoC
+
+Work continued on random ODE (RODE) solvers in OrdinaryDiffEq.jl, including a derivative-free order 1.5 Taylor method and convergence benchmarks, and on PETScDiffEq.jl.
